@@ -1,3 +1,29 @@
+express = require("express")
+nconf = require("nconf")
+cors = require("cors")
+
+
+# Set defaults in nconf
+require "./configure"
+
+
+
+Session = require("./database").Session
+
+
+app = express()
+
+
+
+app.set "jsonp callback", true
+
+app.use cors()
+app.use express.bodyParser()
+app.use require("./middleware/session").middleware(sessions: Session)
+app.use app.router
+app.use errorHandler
+
+
 
 # Sessions
 sessions = require "../endpoints/sessions"
@@ -64,3 +90,25 @@ app.get "/users/:login", users.read
 
 
 app.all "*", (req, res, next) -> next(new errors.NotFound)
+
+
+errorHandler = (err, req, res, next) ->
+  if err instanceof errors.ApiError then res.json err.httpCode,
+    message: err.message
+
+
+
+PRUNE_FREQUENCY = 1000 * 60 * 60 * 6 # Prune the sessions every 6 hours
+SCORE_INCREMENT = 1000 * 60 * 60 * 6 # Each vote bumps the plunk forward 6 hours
+
+pruneSessions = ->
+  console.log "Pruning sessions"
+  Session.prune()
+
+setInterval pruneSessions, PRUNE_FREQUENCY
+pruneSessions()
+
+
+
+
+module.exports = app
