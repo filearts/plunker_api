@@ -35,7 +35,7 @@ createLinksObject = (baseUrl, page, pages, limit) ->
 
 createEvent = (type, user) ->
   event =
-    event: "create"
+    event: type or "create"
     changes: []
 
   event.user = user._id if user
@@ -47,6 +47,7 @@ ownsPlunk = (session, json) ->
   owner = false
 
   if session
+    owner ||= !!(json.user and session.user and json.user is session.user._id)
     owner ||= !!(json.user and session.user and json.user.login is session.user.login)
     owner ||= !!(session.keychain and session.keychain.id(json.id)?.token is json.token)
 
@@ -69,13 +70,13 @@ saveNewPlunk = (plunk, cb) ->
 
 populatePlunk = (json, options = {}) ->
   plunk = options.plunk or new Plunk
-  plunk.description = json.description ? "Untitled"
+  plunk.description = json.description or "Untitled"
   plunk.private = json.private ? true
   plunk.source = json.source
   plunk.user = options.user._id if options.user
   plunk.fork_of = options.parent._id if options.parent
   plunk.tags.push(tag) for tag in json.tags unless options.skipTags
-
+  
   unless options.skipFiles then for filename, file of json.files
     plunk.files.push
       filename: file.filename or filename
@@ -84,11 +85,14 @@ populatePlunk = (json, options = {}) ->
   plunk
 
 preparePlunk = (plunk, json, options) ->
-  delete json.token unless ownsPlunk(options.session, json)
+  # This is a sub-document of the plunk
+  return json if 'function' == typeof plunk.ownerDocument
+
+  delete json.token unless ownsPlunk(options.session, plunk)
   delete json.voters
   delete json._id
   delete json.__v
-
+  
   if json.files then json.files = do ->
     files = {}
     for file in json.files
@@ -96,7 +100,7 @@ preparePlunk = (plunk, json, options) ->
       files[file.filename] = file
     files
 
-  json.thumbed = options.session?.user? and plunk.voters.indexOf("#{session.user._id}") >= 0
+  json.thumbed = options.session?.user? and plunk.voters?.indexOf("#{options.session.user._id}") >= 0
 
   json
 
@@ -136,7 +140,6 @@ applyFilesDeltaToPlunk = (plunk, json) ->
         fn: file.filename or old.filename
       
       if file.filename
-        chg.fn = old.filename
         old.filename = file.filename
       if file.content?
         chg.pl = gdiff.patch_toText(gdiff.patch_make(file.content, old.content))
@@ -176,7 +179,7 @@ applyTagsDeltaToPlunk = (plunk, json) ->
 exports.loadPlunk = loadPlunk = (id, cb) ->
   return cb() unless id and id.length
 
-  Plunk.findById(id).populate("user").exec (err, plunk) ->
+  Plunk.findById(id).populate("user").populate("history.user").exec (err, plunk) ->
     if err then cb(err)
     else unless plunk then cb()
     else cb(null, plunk)
@@ -263,6 +266,7 @@ exports.create = (req, res, next) ->
         getters: true
         
       json.user = req.currentUser.toJSON() if req.currentUser
+      json.history[json.history.length - 1].user = req.currentUser.toJSON() if req.currentUser
 
       res.json(201, json)
 
@@ -282,24 +286,39 @@ exports.update = (req, res, next) ->
   
   req.plunk.history.push(event)
         
-  req.plunk.save (err) ->
+  req.plunk.save (err, plunk) ->
     if err then next(new apiErrors.DatabaseError(err))
-    else res.json plunk.toJSON
-      session: req.currentSession
-      transform: preparePlunk
-      virtuals: true
-      getters: true
+    else
+      
+      json = plunk.toJSON
+        session: req.currentSession
+        transform: preparePlunk
+        virtuals: true
+        getters: true
+        
+      json.history[json.history.length - 1].user = req.currentUser.toJSON() if req.currentUser
+      
+      res.json json
+
 
 exports.fork = (req, res, next) ->
   return next(new Error("request.plunk is required for update()")) unless req.plunk
-
-  event = createEvent "fork", req.currentUser
-  event.changes.push(e) for e in applyFilesDeltaToPlunk(req.plunk, req.body)
-  event.changes.push(e) for e in applyTagsDeltaToPlunk(req.plunk, req.body)
   
-  json = _.extend(req.plunk.toJSON(), req.body)
+  event = createEvent "fork", req.currentUser
+  
+  if req.apiVersion is 1
+    json = req.plunk.toJSON()
+    json.description = req.body.description if req.body.description
+    
+    event.changes.push(e) for e in applyFilesDeltaToPlunk(json, req.body)
+    event.changes.push(e) for e in applyTagsDeltaToPlunk(json, req.body)
+    
+  else if req.apiVersion is 0
+    json = req.body
+
   
   fork = populatePlunk(json, user: req.currentUser, parent: req.plunk)
+  fork.history.push(evt) for evt in req.plunk.history
   fork.history.push(event)
   
   saveNewPlunk fork, (err, plunk) ->
@@ -316,6 +335,7 @@ exports.fork = (req, res, next) ->
         getters: true
         
       json.user = req.currentUser.toJSON() if req.currentUser
+      json.history[json.history.length - 1].user = req.currentUser.toJSON() if req.currentUser
 
       res.json(201, json)
       
@@ -330,7 +350,7 @@ exports.destroy = (req, res, next) ->
   if req.plunk.fork_of then loadPlunk req.plunk.fork_of, (err, parent) ->
     parent.forks.remove(req.plunk.fork_of)
 
-  if err or not req.plunk or not ownsPlunk(req.currentSession, req.plunk) then next(new apiErrors.NotFound)
+  unless ownsPlunk(req.currentSession, req.plunk) then next(new apiErrors.NotFound)
   else req.plunk.remove ->
     res.send(204)
     
@@ -342,23 +362,27 @@ calculateScoreDelta = (count, delta = 1) ->
   (baseIncrement * Math.E ^ (-(count + delta) / decayFactor)) - (baseIncrement * Math.E ^ (-(count) / decayFactor))
 
 exports.setThumbed = (req, res, next) ->
+  return next(new apiErrors.PermissionDenied) unless req.currentUser
+  
   req.plunk.score ||= req.plunk.created_at.valueOf()
   req.plunk.thumbs ||= 0
   
-  req.plunk.voters.addToSet(req.user._id)
+  req.plunk.voters.addToSet(req.currentUser._id)
   req.plunk.score += calculateScoreDelta(req.plunk.thumbs)
   req.plunk.thumbs++
   
-  req.plunk.save (err) ->
+  req.plunk.save (err, plunk) ->
     if err then next(new apiErrors.DatabaseError(err))
-    else res.json({ thumbs: req.plunk.get("thumbs"), score: plunk.score}, 201)
+    else res.json({ thumbs: plunk.get("thumbs"), score: plunk.score}, 201)
 
 exports.unsetThumbed = (req, res, next) ->
-  unless 0 > req.plunk.voters.indexOf(req.user._id)
-    req.plunk.voters.remove(req.user._id)
+  return next(new apiErrors.PermissionDenied) unless req.currentUser
+  
+  unless 0 > req.plunk.voters.indexOf(req.currentUser._id)
+    req.plunk.voters.remove(req.currentUser._id)
     req.plunk.score -= calculateScoreDelta(req.plunk.thumbs)
     req.plunk.thumbs--
   
-  req.plunk.save (err) ->
+  req.plunk.save (err, plunk) ->
     if err then next(new apiErrors.DatabaseError(err))
-    else res.json({ thumbs: req.plunk.get("thumbs"), score: plunk.score}, 200)
+    else res.json({ thumbs: plunk.get("thumbs"), score: plunk.score}, 200)

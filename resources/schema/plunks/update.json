@@ -4,8 +4,7 @@
   "minProperties": 1,
   "properties": {
     "description": {
-      "type": "string",
-      "default": ""
+      "type": "string"
     },
     "tags": {
       "type": "object",

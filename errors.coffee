@@ -7,6 +7,9 @@ createErrorClass = (name, classOptions = {}) ->
   classOptions.initialize ||= (message, options = {}) ->
     @message = message if message
     @[prop] = val for prop, val of options
+  classOptions.toJSON ||= ->
+    error: @message
+
     
   
   class extends ApiError
@@ -20,8 +23,6 @@ createErrorClass = (name, classOptions = {}) ->
       
       @initialize(arguments...)
       
-    toJSON: ->
-      error: @message
 
       
 errorTypes =
@@ -29,6 +30,13 @@ errorTypes =
     httpCode: 400
     message: "Database error"
     initialize: (err) -> console.error("[ERR] #{@message}", err)
+  InvalidBody:
+    httpCode: 400
+    message: "Invalid payload"
+    initialize: (err) -> @invalid = err.message
+    toJSON: ->
+      message: @message
+      invalid: @invalid
   NotFound:
     message: "Not Found"
     httpCode: 404

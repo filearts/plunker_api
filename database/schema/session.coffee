@@ -1,7 +1,11 @@
 mongoose = require("mongoose")
+nconf = require("nconf")
 genid = require("genid")
 
 lastModified = require("../plugins/lastModified")
+
+
+apiUrl = nconf.get("url:api")
 
 
 {Schema, Document, Query} = mongoose

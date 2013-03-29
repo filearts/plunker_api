@@ -2,13 +2,12 @@ express = require("express")
 nconf = require("nconf")
 cors = require("cors")
 
-validateSchema = require("./middleware/schema")
-apiErrors = require("./errors")
-
-
-
 # Set defaults in nconf
 require "./configure"
+
+
+validateSchema = require("./middleware/schema")
+apiErrors = require("./errors")
 
 
 
@@ -20,7 +19,7 @@ apiUrl = nconf.get("api:url")
 
 errorHandler = (err, req, res, next) ->
   if err instanceof apiErrors.ApiError
-    res.json err.httpCode, err
+    res.json err.httpCode, err.toJSON()
   else next(err)
 
 
@@ -28,6 +27,7 @@ app.set "jsonp callback", true
 
 app.use cors()
 app.use express.bodyParser()
+app.use require("./middleware/version").middleware()
 app.use require("./middleware/nocache").middleware()
 app.use require("./middleware/session").middleware(sessions: Session)
 app.use app.router
@@ -67,7 +67,11 @@ app.del "/plunks/:id", plunks.withPlunk, plunks.ownsPlunk, plunks.destroy
 app.post "/plunks/:id/thumb", plunks.withPlunk, plunks.setThumbed
 app.del "/plunks/:id/thumb", plunks.withPlunk, plunks.unsetThumbed
 
-app.post "/plunks/:id/forks", validateSchema(plunks.schema.fork), plunks.withPlunk, plunks.fork
+forkSchema = (req) ->
+  if req.apiVersion is 0 then plunks.schema.create
+  else if req.apiVersion is 1 then plunks.schema.fork
+
+app.post "/plunks/:id/forks", validateSchema(forkSchema), plunks.withPlunk, plunks.fork
 app.get "/plunks/:id/forks", plunks.createListing (req, res) ->
   query: {fork_of: req.params.id}
   baseUrl: "#{apiUrl}/plunk/#{req.params.id}/forks"
