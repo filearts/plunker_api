@@ -62,7 +62,7 @@ saveNewPlunk = (plunk, cb) ->
         if err.code is 11000 then savePlunk()
         else
           console.error "[ERR]", err.message, err
-          return cb(new apiErrors.DatabaseError)
+          return cb(new apiErrors.DatabaseError(err))
       else return cb(null, plunk)
 
   savePlunk()
@@ -184,7 +184,7 @@ exports.loadPlunk = loadPlunk = (id, cb) ->
 
 exports.withPlunk = (req, res, next) ->
   loadPlunk req.params.id, (err, plunk) ->
-    if err then next(err)
+    if err then next(new apiErrors.DatabaseError(err))
     else unless plunk then next(new apiErrors.NotFound)
     else
       req.plunk = plunk
@@ -224,7 +224,7 @@ exports.createListing = (config) ->
     query.select("-history") # We exclude history from plunk listings
     
     query.populate("user").paginate page, limit, (err, plunks, count, pages, current) ->
-      if err then next(err)
+      if err then next(new apiErrors.DatabaseError(err))
       else
         res.links createLinksObject(options.baseUrl, current, pages, limit)
         res.json preparePlunks(req.currentSession, plunks)
@@ -235,13 +235,13 @@ exports.createListing = (config) ->
 
 exports.read = (req, res, next) ->
   loadPlunk req.params.id, (err, plunk) ->
-    if err then next(err)
+    if err then next(new apiErrors.DatabaseError(err))
+    else unless plunk then next(new apiErrors.NotFound)
     else if plunk then res.json plunk.toJSON
       session: req.currentSession
       transform: preparePlunk
       virtuals: true
       getters: true
-    else next(new apiErrors.ImpossibleError)
 
 exports.create = (req, res, next) ->
   event = createEvent("create", req.currentUser)
@@ -250,7 +250,7 @@ exports.create = (req, res, next) ->
   plunk.history.push(event)
 
   saveNewPlunk plunk, (err, plunk) ->
-    if err then next(new apiErrors.InternalServerError(err))
+    if err then next(new apiErrors.DatabaseError(err))
     else
       unless req.user and req.currentSession and req.currentSession.keychain
         req.currentSession.keychain.push _id: plunk._id, token: plunk.token
@@ -283,7 +283,7 @@ exports.update = (req, res, next) ->
   req.plunk.history.push(event)
         
   req.plunk.save (err) ->
-    if err then next(new apiErrors.InternalServerError(err))
+    if err then next(new apiErrors.DatabaseError(err))
     else res.json plunk.toJSON
       session: req.currentSession
       transform: preparePlunk
@@ -303,7 +303,7 @@ exports.fork = (req, res, next) ->
   fork.history.push(event)
   
   saveNewPlunk fork, (err, plunk) ->
-    if err then next(new apiErrors.InternalServerError(err))
+    if err then next(new apiErrors.DatabaseError(err))
     else
       unless req.currentUser and req.currentSession and req.currentSession.keychain
         req.currentSession.keychain.push _id: plunk._id, token: plunk.token
@@ -350,7 +350,7 @@ exports.setThumbed = (req, res, next) ->
   req.plunk.thumbs++
   
   req.plunk.save (err) ->
-    if err then next(new apiErrors.InternalServerError(err))
+    if err then next(new apiErrors.DatabaseError(err))
     else res.json({ thumbs: req.plunk.get("thumbs"), score: plunk.score}, 201)
 
 exports.unsetThumbed = (req, res, next) ->
@@ -360,5 +360,5 @@ exports.unsetThumbed = (req, res, next) ->
     req.plunk.thumbs--
   
   req.plunk.save (err) ->
-    if err then next(new apiErrors.InternalServerError(err))
+    if err then next(new apiErrors.DatabaseError(err))
     else res.json({ thumbs: req.plunk.get("thumbs"), score: plunk.score}, 200)

@@ -19,8 +19,9 @@ apiUrl = nconf.get("api:url")
 
 
 errorHandler = (err, req, res, next) ->
-  if err instanceof apiErrors.ApiError then res.json err.httpCode,
-    message: err.message
+  if err instanceof apiErrors.ApiError
+    res.json err.httpCode, err
+  else next(err)
 
 
 app.set "jsonp callback", true
@@ -30,6 +31,7 @@ app.use express.bodyParser()
 app.use require("./middleware/nocache").middleware()
 app.use require("./middleware/session").middleware(sessions: Session)
 app.use app.router
+app.use errorHandler
 app.use express.errorHandler()
 
 
@@ -97,10 +99,17 @@ app.del "/comments/:id", comments.destroy
 
 ###
 
+app.get "/robots.txt", (req, res, next) ->
+  res.send """
+    User-Agent: *
+    Disallow: /
+  """
 
+app.get "/favicon.ico", (req, res, next) ->
+  console.log "Requesting favicon.ico"
+  res.send("")
 
 app.all "*", (req, res, next) -> next(new apiErrors.NotFound)
-
 
 Session = require("./database").Session
 

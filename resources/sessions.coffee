@@ -35,7 +35,7 @@ module.exports.loadSession = loadSession = (sessid, cb) ->
 
 module.exports.withSession = (req, res, next) ->
   loadSession req.params.id, (err, session) ->
-    if err then next(err)
+    if err then next(new apiErrors.DatabaseError(err))
     else unless session then next(new apiErrors.NotFound)
     else
       req.session = session
@@ -48,28 +48,28 @@ module.exports.withSession = (req, res, next) ->
 module.exports.findOrCreate = (req, res, next) ->
   if req.currentSession then res.json req.currentSession.toJSON()
   else createSession null, (err, session) ->
-    if err then next(err)
+    if err then next(new apiErrors.DatabaseError(err))
     else if session then res.json session.toJSON()
     else next(new apiErrors.ImpossibleError)
 
 
 module.exports.read = (req, res, next) ->
   loadSession req.params.id, (err, session) ->
-    if err then next(err)
+    if err then next(new apiErrors.DatabaseError(err))
     else if session then res.json session.toJSON()
     else next(new apiErrors.ImpossibleError)
 
 
 module.exports.create = (req, res, next) ->
   createSession null, (err, session) ->
-    if err then next(err)
+    if err then next(new apiErrors.DatabaseError(err))
     else if session then res.json session.toJSON()
     else next(new apiErrors.ImpossibleError)
 
 
 module.exports.setUser = (req, res, next) ->
   users.authenticateGithubToken req.param("token"), (err, ghuser) ->
-    return next(err) if err
+    return next(new apiErrors.DatabaseError(err)) if err
     return next(new apiErrors.NotFound) unless ghuser
 
     userInfo =
@@ -78,7 +78,7 @@ module.exports.setUser = (req, res, next) ->
       service_id: "github:#{ghuser.login}"
 
     users.upsert userInfo, (err, user) ->
-      return next(err) if err
+      return next(new apiErrors.DatabaseError(err)) if err
 
       #analytics.identify user._id,
       #  username: user.login
@@ -89,7 +89,7 @@ module.exports.setUser = (req, res, next) ->
         service_name: "github"
         service_token: token
       req.session.save (err, session) ->
-        if err then next(err)
+        if err then next(new apiErrors.DatabaseError(err))
         else res.json(session.toJSON(), 201)
 
 module.exports.unsetUser = (req, res, next) ->
@@ -97,6 +97,6 @@ module.exports.unsetUser = (req, res, next) ->
   req.session.auth = null
 
   req.session.save (err, session) ->
-    return next(err) if err
+    return next(apiErrors.DatabaseError(err)) if err
 
     res.json session.toJSON()

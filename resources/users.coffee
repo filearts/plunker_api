@@ -36,7 +36,7 @@ module.exports.upsert = (userInfo, cb) ->
 
 module.exports.withUser = withUser = (req, res, next) ->
   User.findOne({login: req.params.login}).exec (err, user) ->
-    return next(err) if err
+    return next(new apiErrors.DatabaseError(err)) if err
     return next(apiErrors.NotFound) unless user
 
     req.user = user

@@ -2,28 +2,41 @@ exports.ApiError = class ApiError extends Error
   
 createErrorClass = (name, classOptions = {}) ->
   
-  classOptions.message ||= ""
+  classOptions.message ||= "Unknown error"
+  classOptions.httpCode ||= 500
+  classOptions.initialize ||= (message, options = {}) ->
+    @message = message if message
+    @[prop] = val for prop, val of options
+    
   
   class extends ApiError
     @::[prop] = val for prop, val of classOptions
-  
-    constructor: (@message = classOptions.message, options = {}) ->
+    
+    constructor: ->
       Error.call(@)
       Error.captureStackTrace(@, arguments.callee)
       
-      @name = options.name or name
+      @name = name
       
-      @[prop] = val for prop, val of options
+      @initialize(arguments...)
       
+    toJSON: ->
+      error: @message
 
+      
 errorTypes =
   DatabaseError:
-    message: "Database error"
     httpCode: 400
+    message: "Database error"
+    initialize: (err) -> console.error("[ERR] #{@message}", err)
   NotFound:
     message: "Not Found"
     httpCode: 404
+  PermissionDenied:
+    message: "Permission denied"
+    httpCode: 404
+  ImpossibleError:
+    message: "Impossibru"
 
-
-exports[name] = createErrorClass(name, errDef.message, errDef) for name, errDef of errorTypes
+exports[name] = createErrorClass(name, errDef) for name, errDef of errorTypes
   
