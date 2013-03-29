@@ -14,8 +14,6 @@ createErrorClass = (name, classOptions = {}) ->
       @name = options.name or name
       
       @[prop] = val for prop, val of options
-    
-    toJSON: -> message:
       
 
 errorTypes =

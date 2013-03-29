@@ -1,21 +1,21 @@
 nconf = require("nconf")
+sessions = require("../resources/sessions")
 errors = require("../errors")
 
 module.exports.middleware = (config = {}) ->
   (req, res, next) ->
     if req.query.sessid then sessid = req.query.sessid
-    else if auth = req.header("Authorization") then [header, sessid] = auth.match(/^token (\S+)$/i)
+    else if auth = req.get("authorization") then [header, sessid] = auth.match(/^token (\S+)$/i)
     
-    if sessid and sessid.length then config.sessions.findById(sessid).populate("user").exec (err, session) ->
-      
-      return next(new errors.DatabaseError(err) if err
+    sessions.loadSession sessid, (err, session) ->
+      return next(err) if err
       return next() unless session
-      return next() if Date.now() - session.last_access.valueOf() > nconf.get("session:max_age")
-      session.last_access = new Date
-      session.save() # Don't wait for the response
-      
-      req.session = session
-      req.user = session.user if session.user
 
+      session.last_access = new Date
+
+      req.currentSession = session
+      req.currentUser = session.user if session.user
+      
       next()
-    else next()
+      
+      session.save() # We do this after passing on the route and don't worry about success

@@ -1,4 +1,5 @@
 mongoose = require("mongoose")
+genid = require("genid")
 
 lastModified = require("../plugins/lastModified")
 
@@ -29,5 +30,9 @@ SessionSchema.plugin(lastModified)
 
 SessionSchema.statics.prune = (max_age = 1000 * 60 * 60 * 24 * 7 * 2, cb = ->) ->
   @find({}).where("last_access").lt(new Date(Date.now() - max_age)).remove()
+  
+SessionSchema.set "toJSON",
+  virtuals: true
+  getters: true
 
 exports.SessionSchema = SessionSchema

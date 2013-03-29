@@ -1,3 +1,10 @@
+mongoose = require("mongoose")
+
+
+{Schema, Document, Query} = mongoose
+{ObjectId, Mixed} = Schema.Types
+
+
 PackageVersionSchema = new Schema
   semver: String
   scripts: [String]

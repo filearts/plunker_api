@@ -2,6 +2,7 @@ mongoose = require("mongoose")
 nconf = require("nconf")
 mime = require("mime")
 genid = require("genid")
+url = require("url")
 
 
 apiUrl = nconf.get('url:api')
@@ -25,7 +26,7 @@ require "./plugins/paginate"
 
       
       
-exports =
+module.exports =
   Session: plunkerDb.model "Session", require("./schema/session").SessionSchema
   User: plunkerDb.model "User", require("./schema/user").UserSchema
   Plunk: plunkerDb.model "Plunk", require("./schema/plunk").PlunkSchema

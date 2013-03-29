@@ -1,8 +1,14 @@
 mongoose = require("mongoose")
-
+genid = require("genid")
+nconf = require("nconf")
+mime = require("mime")
 
 {Schema, Document, Query} = mongoose
 {ObjectId, Mixed} = Schema.Types
+
+wwwUrl = nconf.get("url:www")
+apiUrl = nconf.get("url:api")
+runUrl = nconf.get("url:run")
 
 
 PlunkFileSchema = new Schema
