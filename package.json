@@ -1,0 +1,43 @@
+{
+  "name": "plunker-api",
+  "subdomain": "plunker-api",
+  "domains": [
+    "api.plnkr.co",
+    "api.plunker.co"
+  ],
+  "version": "0.4.0-7",
+  "private": true,
+  "description": "The RESTful backend that powers Plunker",
+  "main": "server.js",
+  "dependencies": {
+    "underscore": "~1.4.4",
+    "analytics-node": "~0.3.0",
+    "mime": "~1.2.9",
+    "mongoose": "~3.6.0",
+    "express": "~3.1.0",
+    "request": "~2.16.6",
+    "cors": "~0.0.5",
+    "url": "~0.7.9",
+    "json-gate": "~0.8.21",
+    "nconf": "~0.6.7",
+    "genid": "~0.1.0",
+    "googlediff": "~0.1.0",
+    "semver": "~1.1.4"
+  },
+  "devDependencies": {
+    "coffee-script": "~1.6.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": "0.8.x"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/filearts/plunker_api.git"
+  },
+  "author": "Geoffrey Goodman",
+  "license": "MIT"
+}
