@@ -15,9 +15,10 @@ UserSchema.virtual("created_at").get -> new Date(parseInt(@_id.toString().substr
 UserSchema.set "toJSON",
   virtuals: true
   transform: (user, json, options) ->
+    json.id = json._id
+    
     delete json._id
     delete json.__v
-    delete json.id
     delete json.service_id
     
     json

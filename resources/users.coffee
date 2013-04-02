@@ -26,12 +26,13 @@ module.exports.authenticateGithubToken = authenticateGithubToken = (token, cb) -
 
 module.exports.upsert = (userInfo, cb) ->
   query = service_id: userInfo.service_id
-  options = upsert: true
-
-  User.update(query, userInfo, options, cb)
-
-
-
+  update = (user) ->
+    user.set(userInfo).save(cb)
+  
+  User.findOne(query).exec (err, user) ->
+    if err then cb(err)
+    else if user then update(user)
+    else update(new User)
 # User-related middleware
 
 module.exports.withUser = withUser = (req, res, next) ->

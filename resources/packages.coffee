@@ -18,17 +18,17 @@ exports.schema =
     create: gate.createSchema(require("./schema/packages/versions/create.json"))
     update: gate.createSchema(require("./schema/packages/versions/create.json"))
 
-createLinkHeaderString = (baseUrl, page, pages, limit) ->
-  link = []
-  
+createLinksObject = (baseUrl, page, pages, limit) ->
+  links = {}
+
   if page < pages
-    link.push "<#{baseUrl}?p=#{page+1}&pp=#{limit}>; rel=\"next\""
-    link.push "<#{baseUrl}?p=#{pages}&pp=#{limit}>; rel=\"last\""
+    links.next = "#{baseUrl}?p=#{page+1}&pp=#{limit}"
+    links.last = "#{baseUrl}?p=#{pages}&pp=#{limit}"
   if page > 1
-    link.push "<#{baseUrl}?p=#{page-1}&pp=#{limit}>; rel=\"prev\""
-    link.push "<#{baseUrl}?p=1&pp=#{limit}>; rel=\"first\""
-  
-  link.join(", ")
+    links.prev = "#{baseUrl}?p=#{page-1}&pp=#{limit}"
+    links.first = "#{baseUrl}?p=1&pp=#{limit}"
+
+  links
 
 preparePackage = (pkg, json, options) ->
   # This is a sub-document of the pkg
@@ -89,8 +89,8 @@ exports.createListing = (config) ->
   (req, res, next) ->
     options = _.extend options, config(req, res) if config
     
-    page = parseInt(req.params.p or 1, 10)
-    limit = parseInt(req.params.pp or 12, 10)
+    page = parseInt(req.param("p", "1"), 10)
+    limit = parseInt(req.param("pp", "8"), 10)
 
     # Build the Mongoose Query
     query = Package.find(options.query)
@@ -99,7 +99,7 @@ exports.createListing = (config) ->
     query.paginate page, limit, (err, packages, count, pages, current) ->
       if err then next(new apiErrors.DatabaseError(err))
       else
-        res.header "link", createLinkHeaderString(options.baseUrl, current, pages, limit)
+        res.links createLinksObject(options.baseUrl, current, pages, limit)
         res.json preparePackages(req.currentSession, packages)
 
 

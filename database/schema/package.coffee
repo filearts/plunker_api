@@ -4,11 +4,15 @@ mongoose = require("mongoose")
 {Schema, Document, Query} = mongoose
 {ObjectId, Mixed} = Schema.Types
 
+PackageDependencySchema = new Schema
+  name: String
+  semver: String
 
 PackageVersionSchema = new Schema
   semver: String
   scripts: [String]
   styles: [String]
+  dependencies: [PackageDependencySchema]
 
 PackageSchema = new Schema
   name: { type: String, match: /^[-_.a-z0-9]+$/i, index: true, unique: true }
@@ -16,6 +20,7 @@ PackageSchema = new Schema
   homepage: String
   keywords: [{type: String, index: true}]
   versions: [PackageVersionSchema]
+  categories: [String]
   maintainers: [{ type: String, index: true }]
 
 ###

@@ -38,5 +38,11 @@ SessionSchema.statics.prune = (max_age = 1000 * 60 * 60 * 24 * 7 * 2, cb = ->) -
 SessionSchema.set "toJSON",
   virtuals: true
   getters: true
-
+  transform: (session, json, options) ->
+    json.id = json._id
+    
+    delete json._id
+    delete json.__v
+    
+    json
 exports.SessionSchema = SessionSchema

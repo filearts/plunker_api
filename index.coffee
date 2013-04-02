@@ -12,7 +12,7 @@ apiErrors = require("./errors")
 
 
 app = module.exports = express()
-apiUrl = nconf.get("api:url")
+apiUrl = nconf.get("url:api")
 
 
 
@@ -25,7 +25,7 @@ errorHandler = (err, req, res, next) ->
 
 app.set "jsonp callback", true
 
-app.use cors()
+app.use require("./middleware/cors").middleware()
 app.use express.bodyParser()
 app.use require("./middleware/version").middleware()
 app.use require("./middleware/nocache").middleware()
@@ -102,6 +102,27 @@ app.post "/comments/:id", comments.update
 app.del "/comments/:id", comments.destroy
 
 ###
+
+# Catalogue
+packages = require "./resources/packages"
+
+app.get "/catalogue/typeahead", packages.createListing (req, res) ->
+  query: name: $regex: "^#{req.query.q}"
+  
+app.get "/catalogue/packages", packages.createListing()
+
+app.post "/catalogue/packages", validateSchema(packages.schema.create), users.withUser, packages.create
+app.get "/catalogue/packages/:name", packages.withPackage, packages.read
+app.post "/catalogue/packages/:name", validateSchema(packages.schema.update), packages.withOwnPackage, packages.update
+app.del "/catalogue/packages/:name", packages.withOwnPackage, packages.destroy
+
+app.post "/catalogue/packages/:name/maintainers", packages.withOwnPackage, packages.addMaintainer
+app.del "/catalogue/packages/:name/maintainers", packages.withOwnPackage, packages.removeMaintainer
+
+#app.post "/catalogue/packages/:name/versions/", validateSchema(packages.schema.versions.create), packages.withOwnPackage, packages.createVersion
+#app.get "/catalogue/packages/:name/versions/:semver", packages.withPackage, packages.readVersion
+#app.post "/catalogue/packages/:name/versions/:semver", validateSchema(packages.schema.versions.update), packages.withOwnPackage, packages.updateVersion
+#app.del "/catalogue/packages/:name/versions/:semver", packages.withOwnPackage, packages.destroyVersion
 
 app.get "/robots.txt", (req, res, next) ->
   res.send """

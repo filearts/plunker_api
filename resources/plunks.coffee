@@ -28,8 +28,8 @@ createLinksObject = (baseUrl, page, pages, limit) ->
     links.next = "#{baseUrl}?p=#{page+1}&pp=#{limit}"
     links.last = "#{baseUrl}?p=#{pages}&pp=#{limit}"
   if page > 1
-    links.prev "#{baseUrl}?p=#{page-1}&pp=#{limit}"
-    links.first "#{baseUrl}?p=1&pp=#{limit}"
+    links.prev = "#{baseUrl}?p=#{page-1}&pp=#{limit}"
+    links.first = "#{baseUrl}?p=1&pp=#{limit}"
 
   links
 
@@ -208,7 +208,7 @@ exports.createListing = (config) ->
     options = _.extend options, config(req, res) if config
     
     page = parseInt(req.param("p", "1"), 10)
-    limit = parseInt(req.param("pp", "8"))
+    limit = parseInt(req.param("pp", "8"), 10)
 
     # Filter on plunks that are visible to the active user
     if req.currentUser

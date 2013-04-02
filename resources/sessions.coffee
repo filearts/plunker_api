@@ -3,6 +3,7 @@ analytics = require("analytics-node")
 request = require("request")
 users = require("./users")
 apiErrors = require("../errors")
+_ = require("underscore")._
 
 {Session} = require("../database")
 
@@ -68,7 +69,8 @@ module.exports.create = (req, res, next) ->
 
 
 module.exports.setUser = (req, res, next) ->
-  users.authenticateGithubToken req.param("token"), (err, ghuser) ->
+  token = req.param("token")
+  users.authenticateGithubToken token, (err, ghuser) ->
     return next(new apiErrors.DatabaseError(err)) if err
     return next(new apiErrors.NotFound) unless ghuser
 
@@ -83,14 +85,14 @@ module.exports.setUser = (req, res, next) ->
       #analytics.identify user._id,
       #  username: user.login
       #  created: user.created_at
-
-      req.session.user = user
+      
+      req.session.user = user._id
       req.session.auth =
         service_name: "github"
         service_token: token
       req.session.save (err, session) ->
         if err then next(new apiErrors.DatabaseError(err))
-        else res.json(session.toJSON(), 201)
+        else res.json(201, _.extend(session.toJSON(), user: user.toJSON()))
 
 module.exports.unsetUser = (req, res, next) ->
   req.session.user = null
