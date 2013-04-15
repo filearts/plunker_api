@@ -2,6 +2,10 @@ express = require("express")
 nconf = require("nconf")
 cors = require("cors")
 
+#memwatch = require("memwatch");
+
+#memwatch.on "leak", (d) -> console.log "[LEAK]", d
+
 # Set defaults in nconf
 require "./configure"
 
@@ -15,6 +19,7 @@ app = module.exports = express()
 apiUrl = nconf.get("url:api")
 
 
+{Session} = require("./database")
 
 
 errorHandler = (err, req, res, next) ->
@@ -34,10 +39,32 @@ app.use app.router
 app.use errorHandler
 app.use express.errorHandler()
 
+###
+hd = null
 
+app.get "/debug/start", (req, res, next) ->
+  if hd then res.send 400, "Heap diff in progress"
+  else
+    hd = new memwatch.HeapDiff
+    res.send 200, "Heap diff started"
+
+app.get "/debug/end", (req, res, next) ->
+  if hd then res.json hd.end()
+  else res.send 400, "Heap diff not in progress"
+  
+  hd = null
+  
+app.get "/debug/gc", (req, res, next) ->
+  memwatch.gc()
+  
+  res.send "Garbage collected"
+###
 
 # Sessions
 sessions = require "./resources/sessions"
+
+# Users
+users = require "./resources/users"
 
 
 app.get "/sessions", sessions.findOrCreate
@@ -46,6 +73,7 @@ app.get "/sessions/:id", sessions.read
 
 app.post "/sessions/:id/user", sessions.withSession, sessions.setUser
 app.del "/sessions/:id/user", sessions.withSession, sessions.unsetUser
+
 
 # Plunks
 plunks = require "./resources/plunks"
@@ -58,6 +86,18 @@ app.get "/plunks/trending", plunks.createListing (req, res) ->
 app.get "/plunks/popular", plunks.createListing (req, res) ->
   baseUrl: "#{apiUrl}/plunks/popular"
   sort: "-thumbs -updated_at"
+app.get "/plunks/views", plunks.createListing (req, res) ->
+  baseUrl: "#{apiUrl}/plunks/views"
+  sort: "-views -updated_at"
+app.get "/plunks/forked", plunks.createListing (req, res) ->
+  baseUrl: "#{apiUrl}/plunks/forked"
+  sort: "-forked -updated_at"
+
+app.get "/plunks/remembered", users.withCurrentUser, plunks.createListing (req, res) ->
+  sort: "-updated_at"
+  ignorePrivate: true
+  query: {rememberers: req.currentUser._id}
+  baseUrl: "#{apiUrl}/users/#{req.params.login}/remembered"
 
 app.post "/plunks", validateSchema(plunks.schema.create), plunks.create
 app.get "/plunks/:id", plunks.withPlunk, plunks.read
@@ -66,6 +106,9 @@ app.del "/plunks/:id", plunks.withPlunk, plunks.ownsPlunk, plunks.destroy
 
 app.post "/plunks/:id/thumb", plunks.withPlunk, plunks.setThumbed
 app.del "/plunks/:id/thumb", plunks.withPlunk, plunks.unsetThumbed
+
+app.post "/plunks/:id/remembered", plunks.withPlunk, plunks.setRemembered
+app.del "/plunks/:id/remembered", plunks.withPlunk, plunks.unsetRemembered
 
 forkSchema = (req) ->
   if req.apiVersion is 0 then plunks.schema.create
@@ -78,17 +121,21 @@ app.get "/plunks/:id/forks", plunks.createListing (req, res) ->
   sort: "-updated_at"
 
 
-# Users
-users = require "./resources/users"
 
 app.get "/users/:login", users.withUser, users.read
 
 app.get "/users/:login/plunks", users.withUser, plunks.createListing (req, res) ->
+  sort: "-updated_at"
   query: {user: req.user._id}
   baseUrl: "#{apiUrl}/users/#{req.params.login}/plunks"
 app.get "/users/:login/thumbed", users.withUser, plunks.createListing (req, res) ->
+  sort: "-updated_at"
   query: {voters: req.user._id}
   baseUrl: "#{apiUrl}/users/#{req.params.login}/thumbed"
+app.get "/users/:login/remembered", users.withUser, plunks.createListing (req, res) ->
+  sort: "-updated_at"
+  query: {rememberers: req.user._id}
+  baseUrl: "#{apiUrl}/users/#{req.params.login}/remembered"
 
 ###
 
@@ -124,6 +171,12 @@ app.del "/catalogue/packages/:name/maintainers", packages.withOwnPackage, packag
 #app.post "/catalogue/packages/:name/versions/:semver", validateSchema(packages.schema.versions.update), packages.withOwnPackage, packages.updateVersion
 #app.del "/catalogue/packages/:name/versions/:semver", packages.withOwnPackage, packages.destroyVersion
 
+# Tags
+tags = require "./resources/tags"
+
+app.get "/tags", tags.list
+
+
 app.get "/robots.txt", (req, res, next) ->
   res.send """
     User-Agent: *
@@ -131,17 +184,19 @@ app.get "/robots.txt", (req, res, next) ->
   """
 
 app.get "/favicon.ico", (req, res, next) ->
-  console.log "Requesting favicon.ico"
   res.send("")
 
 app.all "*", (req, res, next) -> next(new apiErrors.NotFound)
 
-Session = require("./database").Session
 
 PRUNE_FREQUENCY = 1000 * 60 * 60 * 6 # Prune the sessions every 6 hours
 
 pruneSessions = ->
-  console.log "Pruning sessions"
-  Session.prune()
+  console.log "[INFO] Pruning sessions"
+  sessions.prune (err, numDocs) ->
+    if err then console.log "[ERR] Pruning failed", err.message
+    else console.log "[OK] Pruned #{numDocs} sessions"
+  
+  setTimeout pruneSessions, PRUNE_FREQUENCY
 
-setInterval pruneSessions, PRUNE_FREQUENCY
+pruneSessions()

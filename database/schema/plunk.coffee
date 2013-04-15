@@ -42,6 +42,7 @@ PlunkSchema = new Schema
   updated_at: { type: Date, 'default': Date.now }
   token: { type: String, 'default': genid.bind(null, 16) }
   'private': { type: Boolean, 'default': false }
+  template: { type: Boolean, 'default': false }
   source: {}
   files: [PlunkFileSchema]
   user: { type: Schema.ObjectId, ref: "User", index: true }
@@ -50,10 +51,15 @@ PlunkSchema = new Schema
   forks: [{ type: String, ref: "Plunk", index: true }]
   tags: [{ type: String, index: true}]
   voters: [{ type: Schema.ObjectId, ref: "Users", index: true }]
+  rememberers: [{ type: Schema.ObjectId, ref: "Users", index: true }]
   history: [PlunkHistorySchema]
+  views: { type: Number, 'default': 0 }
+  forked: { type: Number, 'default': 0 }
   
 PlunkSchema.index(score: -1, updated_at: -1)
 PlunkSchema.index(thumbs: -1, updated_at: -1)
+PlunkSchema.index(views: -1, updated_at: -1)
+PlunkSchema.index(forked: -1, updated_at: -1)
 
 PlunkSchema.virtual("url").get -> apiUrl + "/plunks/#{@_id}"
 PlunkSchema.virtual("raw_url").get -> runUrl + "/plunks/#{@_id}/"

@@ -45,6 +45,7 @@ errorTypes =
     httpCode: 404
   ImpossibleError:
     message: "Impossibru"
+    initialize: (err) -> console.error("[ERR] #{@message}", err)
 
 exports[name] = createErrorClass(name, errDef) for name, errDef of errorTypes
   

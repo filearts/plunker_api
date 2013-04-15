@@ -3,7 +3,7 @@ request = require("request")
 users = require("./users")
 apiErrors = require("../errors")
 
-{User} = require("../database")
+{User, Plunk} = require("../database")
 
 
 
@@ -11,7 +11,7 @@ apiErrors = require("../errors")
 
 module.exports.authenticateGithubToken = authenticateGithubToken = (token, cb) ->
   return cb() unless token
-
+  
   config =
     url: "https://api.github.com/user?access_token=#{token}"
     json: true
@@ -27,12 +27,26 @@ module.exports.authenticateGithubToken = authenticateGithubToken = (token, cb) -
 module.exports.upsert = (userInfo, cb) ->
   query = service_id: userInfo.service_id
   update = (user) ->
-    user.set(userInfo).save(cb)
+    user.set(userInfo).save (err) -> cb(err, user)
   
   User.findOne(query).exec (err, user) ->
     if err then cb(err)
     else if user then update(user)
     else update(new User)
+
+# Fix plunks saved with invalid github:login style service_id's
+module.exports.correct = (invalid_id, correct_id) ->
+  User.findOne {service_id: invalid_id}, (err, user) ->
+    if err then console.log "[ERR] Failed to query for #{invalid_id}"
+    else if user then Plunk.update {user: user._id}, {user: correct_id}, {multi: true}, (err, numAffected) ->
+      console.log "[OK] Fixed #{numAffected} plunks by #{user.login} incorrectly attributed to #{invalid_id}"
+      
+      user.remove (err) ->
+        if err then console.log "[ERR] Failed to remove duplicate user #{user.login}"
+        else console.log "[OK] Removed duplicate user #{user.login}"
+      
+
+
 # User-related middleware
 
 module.exports.withUser = withUser = (req, res, next) ->
@@ -43,7 +57,11 @@ module.exports.withUser = withUser = (req, res, next) ->
     req.user = user
     next()
 
-
+module.exports.withCurrentUser = withCurrentUser = (req, res, next) ->
+    return next(apiErrors.NotFound) unless req.currentUser
+    next()
+    
+    
 # User-related request handlers
 
 module.exports.read = (req, res, next) ->

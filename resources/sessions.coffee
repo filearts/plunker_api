@@ -8,15 +8,21 @@ _ = require("underscore")._
 {Session} = require("../database")
 
 
+MAX_AGE = 1000 * 60 * 60 * 24 * 7 * 2
+
 # Session-related helpers
 
+module.exports.prune = (cb = ->) ->
+  Session.remove(last_access: $lt: Date.now() - MAX_AGE).exec(cb)
+
 module.exports.createSession = createSession = (user, cb) ->
-  session = new Session
+  session =
     last_access: new Date
     keychain: {}
 
-  session.user = user if user
-  session.save(cb)
+  session.user = user._id if user
+  
+  Session.create(session, cb)
 
 
 module.exports.loadSession = loadSession = (sessid, cb) ->
@@ -51,21 +57,25 @@ module.exports.findOrCreate = (req, res, next) ->
   else createSession null, (err, session) ->
     if err then next(new apiErrors.DatabaseError(err))
     else if session then res.json session.toJSON()
-    else next(new apiErrors.ImpossibleError)
+    else
+      console.log "[ERR] findOrCreate"
+      next(new apiErrors.ImpossibleError)
 
 
 module.exports.read = (req, res, next) ->
   loadSession req.params.id, (err, session) ->
     if err then next(new apiErrors.DatabaseError(err))
     else if session then res.json session.toJSON()
-    else next(new apiErrors.ImpossibleError)
+    else next(new apiErrors.NotFound)
 
 
 module.exports.create = (req, res, next) ->
   createSession null, (err, session) ->
     if err then next(new apiErrors.DatabaseError(err))
     else if session then res.json session.toJSON()
-    else next(new apiErrors.ImpossibleError)
+    else
+      console.log "[ERR] createSession"
+      next(new apiErrors.ImpossibleError)
 
 
 module.exports.setUser = (req, res, next) ->
@@ -73,14 +83,17 @@ module.exports.setUser = (req, res, next) ->
   users.authenticateGithubToken token, (err, ghuser) ->
     return next(new apiErrors.DatabaseError(err)) if err
     return next(new apiErrors.NotFound) unless ghuser
-
+    
     userInfo =
       login: ghuser.login
       gravatar_id: ghuser.gravatar_id
-      service_id: "github:#{ghuser.login}"
+      service_id: "github:#{ghuser.id}"
 
     users.upsert userInfo, (err, user) ->
       return next(new apiErrors.DatabaseError(err)) if err
+      return next(new apiErrors.NotFound) unless user
+      
+      users.correct("github:#{ghuser.login}", user._id)
 
       #analytics.identify user._id,
       #  username: user.login
@@ -92,13 +105,21 @@ module.exports.setUser = (req, res, next) ->
         service_token: token
       req.session.save (err, session) ->
         if err then next(new apiErrors.DatabaseError(err))
-        else res.json(201, _.extend(session.toJSON(), user: user.toJSON()))
+        else if session then res.json(201, _.extend(session.toJSON(), user: user.toJSON()))
+        else
+          console.log "[ERR] setUser->session.save", arguments...
+          next(new apiErrors.ImpossibleError)
+
+        
 
 module.exports.unsetUser = (req, res, next) ->
   req.session.user = null
   req.session.auth = null
 
   req.session.save (err, session) ->
-    return next(apiErrors.DatabaseError(err)) if err
-
-    res.json session.toJSON()
+    if err then next(apiErrors.DatabaseError(err)) 
+    else if session then res.json session.toJSON()
+    else
+      console.log "[ERR] unsetUser->session.save", arguments...
+      next(new apiErrors.ImpossibleError)
+    

@@ -87,9 +87,36 @@ populatePlunk = (json, options = {}) ->
 preparePlunk = (plunk, json, options) ->
   # This is a sub-document of the plunk
   return json if 'function' == typeof plunk.ownerDocument
+  
+  corrected = false
+
+  if plunk.voters?.length != plunk.thumbs
+    console.log "[INFO] Correcting thumbs for #{plunk.id} to #{plunk.voters.length}"
+
+    plunk.thumbs = plunk.voters.length
+    
+    corrected = true
+  
+  if plunk.forks?.length != plunk.forked
+    console.log "[INFO] Correcting forks for #{plunk.id} to #{plunk.forks.length}"
+    
+    plunk.forked = plunk.forks.length
+    
+    corrected = true
+
+  if plunk.score and plunk.score != plunk.created_at.valueOf() + calculateScore(plunk.thumbs)
+    delta = calculateScore(plunk.thumbs)
+    console.log "[INFO] Correcting score for #{plunk.id} to #{delta / (1000 * 60 * 60)}"
+    plunk.score = json.score = plunk.created_at.valueOf() + delta
+    
+    corrected = true
+    
+  
+  if corrected then plunk.save() # Issue a save asynchronously and don't care about result
 
   delete json.token unless ownsPlunk(options.session, plunk)
   delete json.voters
+  delete json.rememberers
   delete json._id
   delete json.__v
   
@@ -101,6 +128,8 @@ preparePlunk = (plunk, json, options) ->
     files
 
   json.thumbed = options.session?.user? and plunk.voters?.indexOf("#{options.session.user._id}") >= 0
+  json.remembered = options.session?.user? and plunk.rememberers?.indexOf("#{options.session.user._id}") >= 0
+  json.user = options.user.toJSON() if options.user
 
   json
 
@@ -131,7 +160,11 @@ applyFilesDeltaToPlunk = (plunk, json) ->
         changes.push
           pn: filename
           pl: old.content
-        oldFiles[filename].remove() 
+        
+        # The old file may be a subdocument (when updating) OR a simple field (when forking)
+        # Handle both cases
+        if old.remove? then oldFiles[filename].remove()
+        else delete oldFiles[filename]
         
     # Modification to an existing file
     else if old = oldFiles[filename]
@@ -160,14 +193,14 @@ applyFilesDeltaToPlunk = (plunk, json) ->
   changes
 
 applyTagsDeltaToPlunk = (plunk, json) ->
-  changes = []
+  changes = []      
   
   if json.tags
     plunk.tags ||= []
     
     for tagname, add of json.tags
       if add
-        plunk.tags.push(tagname)
+        plunk.tags.addToSet(tagname)
       else
         plunk.tags.splice(idx, 1) if (idx = plunk.tags.indexOf(tagname)) >= 0
   
@@ -180,9 +213,39 @@ exports.loadPlunk = loadPlunk = (id, cb) ->
   return cb() unless id and id.length
 
   Plunk.findById(id).populate("user").populate("history.user").exec (err, plunk) ->
+    changed = false
+    
+    # Fix duplicate tags
+    if plunk?.tags and _.uniq(plunk.tags).length != plunk.tags.length
+      seen = []
+      dups = []
+      idx = plunk.tags.length - 1
+      
+      while idx >= 0
+        tagname = plunk.tags[idx]
+        
+        unless 0 > seen.indexOf(tagname)
+          dups.push(tagname)
+          plunk.tags.splice(idx, 1)
+        else seen.push(tagname)
+        
+        idx--
+      
+      changed ||= dups.length > 0
+      
+      if dups.length 
+        console.log "[INFO] Removing duplicate tags: #{dups.join(', ')} for #{id}" 
+    
+    if changed then return plunk.save (err) ->
+      console.log "[OK] Duplicate tags removed" unless err
+      cb(err, plunk)
+    
     if err then cb(err)
     else unless plunk then cb()
     else cb(null, plunk)
+    
+  
+  return
 
 
 exports.withPlunk = (req, res, next) ->
@@ -192,38 +255,44 @@ exports.withPlunk = (req, res, next) ->
     else
       req.plunk = plunk
       next()
+  
+  return
 
 exports.ownsPlunk = (req, res, next) ->
   unless ownsPlunk(req.currentSession, req.plunk) then next(new apiErrors.NotFound)
   else next()
   
+  return
+  
 
 exports.createListing = (config) ->
-  options = {}
-  
-  options.baseUrl ||= "#{apiUrl}/plunks"
-  options.query ||= {}
 
   (req, res, next) ->
-    options = _.extend options, config(req, res) if config
+    options = config(req, res) if config
+    options ||= {}
+    
+    options.baseUrl ||= "#{apiUrl}/plunks"
+    options.query ||= {}
     
     page = parseInt(req.param("p", "1"), 10)
     limit = parseInt(req.param("pp", "8"), 10)
 
     # Filter on plunks that are visible to the active user
-    if req.currentUser
-      options.query.$or = [
-        'private': $ne: true
-      ,
-        user: req.currentUser._id
-      ]
-    else
-      options.query.private = $ne: true
-
+    unless options.ignorePrivate
+      if req.currentUser
+        options.query.$or = [
+          'private': $ne: true
+        ,
+          user: req.currentUser._id
+        ]
+      else
+        options.query.private = $ne: true
+        
     # Build the Mongoose Query
     query = Plunk.find(options.query)
-    query.sort(options.sort or {updated_at: -1})
-    query.select("-files") # We exclude files from plunk listings
+    query.sort(options.sort or "-updated_at")
+    query.select("-files") unless req.param("files") is "yes" # We exclude files from plunk listings
+    query.select("-files.content") if req.param("file.contents") is "no"
     query.select("-history") # We exclude history from plunk listings
     
     query.populate("user").paginate page, limit, (err, plunks, count, pages, current) ->
@@ -231,7 +300,11 @@ exports.createListing = (config) ->
       else
         res.links createLinksObject(options.baseUrl, current, pages, limit)
         res.json preparePlunks(req.currentSession, plunks)
-
+      
+      # Is a memory leak here?
+      options = page = limit = null
+    
+    return
 
 
 # Request handlers
@@ -240,11 +313,21 @@ exports.read = (req, res, next) ->
   loadPlunk req.params.id, (err, plunk) ->
     if err then next(new apiErrors.DatabaseError(err))
     else unless plunk then next(new apiErrors.NotFound)
-    else if plunk then res.json plunk.toJSON
-      session: req.currentSession
-      transform: preparePlunk
-      virtuals: true
-      getters: true
+    else if plunk
+    
+      unless req.param("nv")
+        plunk.views++
+        plunk.save()
+    
+      json = plunk.toJSON
+        session: req.currentSession
+        transform: preparePlunk
+        virtuals: true
+        getters: true
+      
+      res.json json
+      
+  return
 
 exports.create = (req, res, next) ->
   event = createEvent("create", req.currentUser)
@@ -269,7 +352,8 @@ exports.create = (req, res, next) ->
       json.history[json.history.length - 1].user = req.currentUser.toJSON() if req.currentUser
 
       res.json(201, json)
-
+      
+  return
 
 
 
@@ -291,6 +375,7 @@ exports.update = (req, res, next) ->
     else
       
       json = plunk.toJSON
+        user: req.currentUser
         session: req.currentSession
         transform: preparePlunk
         virtuals: true
@@ -300,6 +385,7 @@ exports.update = (req, res, next) ->
       
       res.json json
 
+  return
 
 exports.fork = (req, res, next) ->
   return next(new Error("request.plunk is required for update()")) unless req.plunk
@@ -342,27 +428,45 @@ exports.fork = (req, res, next) ->
       # Update the forks of the parent after the request is sent
       # No big deal if the forks update fails
       req.plunk.forks.push(plunk._id)
+      req.plunk.forked++
       req.plunk.save()
 
+  return
+  
 exports.destroy = (req, res, next) ->
   return next(new Error("request.plunk is required for update()")) unless req.plunk
   
   if req.plunk.fork_of then loadPlunk req.plunk.fork_of, (err, parent) ->
     parent.forks.remove(req.plunk.fork_of)
+    parent.forked--
+    parent.save()
 
   unless ownsPlunk(req.currentSession, req.plunk) then next(new apiErrors.NotFound)
   else req.plunk.remove ->
     res.send(204)
     
-
-calculateScoreDelta = (count, delta = 1) ->
-  baseIncrement = 1000 * 60 * 60 * 12 # The first vote will move the plunk forward 12 hours in time
-  decayFactor = 4
+  return
   
-  (baseIncrement * Math.E ^ (-(count + delta) / decayFactor)) - (baseIncrement * Math.E ^ (-(count) / decayFactor))
+calculateScore = (count = 0) ->
+  score = 0
+  
+  while count > 0
+    score += calculateScoreDelta(count - 1)
+    count--
+  
+  score
+  
+
+calculateScoreDelta = (count = 0) ->
+  baseIncrement = 1000 * 60 * 60 * 12 # The first vote will move the plunk forward 12 hours in time
+  decayFactor = 1.2
+  
+  baseIncrement / Math.pow(decayFactor, count)
+  
 
 exports.setThumbed = (req, res, next) ->
   return next(new apiErrors.PermissionDenied) unless req.currentUser
+  return next(new apiErrors.NotFound) unless 0 > req.plunk.voters.indexOf(req.currentUser._id)
   
   req.plunk.score ||= req.plunk.created_at.valueOf()
   req.plunk.thumbs ||= 0
@@ -377,12 +481,32 @@ exports.setThumbed = (req, res, next) ->
 
 exports.unsetThumbed = (req, res, next) ->
   return next(new apiErrors.PermissionDenied) unless req.currentUser
+  return next(new apiErrors.NotFound) if 0 > req.plunk.voters.indexOf(req.currentUser._id)
   
   unless 0 > req.plunk.voters.indexOf(req.currentUser._id)
     req.plunk.voters.remove(req.currentUser._id)
-    req.plunk.score -= calculateScoreDelta(req.plunk.thumbs)
+    req.plunk.score -= calculateScoreDelta(req.plunk.thumbs - 1)
     req.plunk.thumbs--
   
   req.plunk.save (err, plunk) ->
     if err then next(new apiErrors.DatabaseError(err))
     else res.json({ thumbs: plunk.get("thumbs"), score: plunk.score}, 200)
+
+
+exports.setRemembered = (req, res, next) ->
+  return next(new apiErrors.PermissionDenied) unless req.currentUser
+  
+  req.plunk.rememberers.addToSet(req.currentUser._id)
+  
+  req.plunk.save (err, plunk) ->
+    if err then next(new apiErrors.DatabaseError(err))
+    else res.json({ status: "OK" }, 201)
+
+exports.unsetRemembered = (req, res, next) ->
+  return next(new apiErrors.PermissionDenied) unless req.currentUser
+  
+  req.plunk.rememberers.remove(req.currentUser._id)
+  
+  req.plunk.save (err, plunk) ->
+    if err then next(new apiErrors.DatabaseError(err))
+    else res.json({ status: "OK" }, 200)

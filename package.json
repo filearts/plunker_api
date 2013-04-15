@@ -5,7 +5,7 @@
     "api.plnkr.co",
     "api.plunker.co"
   ],
-  "version": "0.4.0-7",
+  "version": "0.4.1-11",
   "private": true,
   "description": "The RESTful backend that powers Plunker",
   "main": "server.js",
@@ -22,7 +22,9 @@
     "nconf": "~0.6.7",
     "genid": "~0.1.0",
     "googlediff": "~0.1.0",
-    "semver": "~1.1.4"
+    "semver": "~1.1.4",
+    "nodefly": "~0.1.34",
+    "memwatch": "~0.2.2"
   },
   "devDependencies": {
     "coffee-script": "~1.6.1"
