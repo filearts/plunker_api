@@ -16,6 +16,7 @@ module.exports.authenticateGithubToken = authenticateGithubToken = (token, cb) -
     url: "https://api.github.com/user?access_token=#{token}"
     json: true
     timeout: 6000
+    headers: { 'User-Agent': "plunker-api" }
 
   request.get config, (err, res, body) ->
     return cb(err) if err
