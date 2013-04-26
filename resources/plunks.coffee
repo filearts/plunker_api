@@ -200,7 +200,7 @@ applyTagsDeltaToPlunk = (plunk, json) ->
     
     for tagname, add of json.tags
       if add
-        plunk.tags.addToSet(tagname)
+        plunk.tags.push(tagname)  if (idx = plunk.tags.indexOf(tagname)) < 0
       else
         plunk.tags.splice(idx, 1) if (idx = plunk.tags.indexOf(tagname)) >= 0
   
