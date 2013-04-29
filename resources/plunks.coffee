@@ -437,9 +437,10 @@ exports.destroy = (req, res, next) ->
   return next(new Error("request.plunk is required for update()")) unless req.plunk
   
   if req.plunk.fork_of then loadPlunk req.plunk.fork_of, (err, parent) ->
-    parent.forks.remove(req.plunk.fork_of)
-    parent.forked--
-    parent.save()
+    if parent
+      parent.forks.remove(req.plunk.fork_of)
+      parent.forked--
+      parent.save()
 
   unless ownsPlunk(req.currentSession, req.plunk) then next(new apiErrors.NotFound)
   else req.plunk.remove ->
