@@ -21,6 +21,7 @@ PackageSchema = new Schema
   keywords: [{type: String, index: true}]
   versions: [PackageVersionSchema]
   categories: [String]
+  bumps: { type: Number, default: 0, index: true }
   maintainers: [{ type: String, index: true }]
 
 ###

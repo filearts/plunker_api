@@ -14,7 +14,7 @@ apiUrl = nconf.get("url:api")
 exports.schema =
   create: gate.createSchema(require("./schema/packages/create.json"))
   update: gate.createSchema(require("./schema/packages/update.json"))
-  version:
+  versions:
     create: gate.createSchema(require("./schema/packages/versions/create.json"))
     update: gate.createSchema(require("./schema/packages/versions/create.json"))
 
@@ -94,7 +94,7 @@ exports.createListing = (config) ->
 
     # Build the Mongoose Query
     query = Package.find(options.query)
-    query.sort(options.sort or {name: 1})
+    query.sort(options.sort or {bumps: -1})
     
     query.paginate page, limit, (err, packages, count, pages, current) ->
       if err then next(new apiErrors.DatabaseError(err))
@@ -124,17 +124,18 @@ exports.create = (req, res, next) ->
 
 
 exports.read = (req, res, next) ->
-  loadPackage {name: req.params.name}, (err, pkg) ->
-    if err then next(new apiErrors.DatabaseError(err))
-    else unless pkg then next(new apiErrors.NotFound)
-    else if pkg
-      json = pkg.toJSON
-        session: req.currentSession
-        transform: preparePackage
-        virtuals: true
-        getters: true
-      
-      res.json json
+  if req.param("bump")
+    req.pkg.update({$inc: {bumps: 1}}) # Send asynch request to update db copy
+    req.pkg.bumps++
+  
+  json = req.pkg.toJSON
+    session: req.currentSession
+    transform: preparePackage
+    virtuals: true
+    getters: true
+  
+  res.json json
+
 
 
 exports.update = (req, res, next) ->
@@ -182,3 +183,57 @@ exports.removeMaintainer = (req, res, next) ->
         getters: true
       
       res.json 200, json
+
+exports.versions = {}
+
+exports.versions.create = (req, res, next) ->
+  req.pkg.versions.push(req.body)
+  req.pkg.save (err, pkg) ->
+    if err then next(new apiErrors.DatabaseError(err))
+    else
+      json = pkg.toJSON
+        session: req.currentSession
+        transform: preparePackage
+        virtuals: true
+        getters: true
+      
+      res.json 201, json
+
+# There is no specific versions.read
+
+exports.versions.update = (req, res, next) ->
+  version = _.find req.pkg.versions, (ver) -> ver.semver = req.params.semver
+  
+  return next(new apiErrors.NotFound) unless version
+  
+  _.extend version, req.body
+  
+  req.pkg.save (err, pkg) ->
+    if err then next(new apiErrors.DatabaseError(err))
+    else
+      json = pkg.toJSON
+        session: req.currentSession
+        transform: preparePackage
+        virtuals: true
+        getters: true
+      
+      res.json 201, json
+
+
+exports.versions.destroy = (req, res, next) ->
+  version = _.find req.pkg.versions, (ver) -> ver.semver = req.params.semver
+  
+  return next(new apiErrors.NotFound) unless version
+  
+  version.remove()
+  
+  req.pkg.save (err, pkg) ->
+    if err then next(new apiErrors.DatabaseError(err))
+    else
+      json = pkg.toJSON
+        session: req.currentSession
+        transform: preparePackage
+        virtuals: true
+        getters: true
+      
+      res.json 201, json

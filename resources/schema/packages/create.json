@@ -30,46 +30,6 @@
       "items": {
         "type": "string"
       }
-    },
-    "versions": {
-      "type": "array",
-      "additionalItems": false,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "semver": {
-            "type": "string"
-          },
-          "scripts": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "styles": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "dependencies": {
-            "type": "array",
-            "additionalItems": false,
-            "items": {
-              "type": "object",
-              "properties": {
-                "semver": {
-                  "type": "string"
-                },
-                "name": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
     }
   }
 }

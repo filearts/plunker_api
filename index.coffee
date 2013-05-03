@@ -153,23 +153,26 @@ app.del "/comments/:id", comments.destroy
 # Catalogue
 packages = require "./resources/packages"
 
-app.get "/catalogue/typeahead", packages.createListing (req, res) ->
-  query: name: $regex: "^#{req.query.q}"
+app.get "/catalogue/typeahead", packages.createListing()
+app.get "/catalogue/typeahead/:query", packages.createListing (req, res) ->
+  if req.params.query then query: name: $regex: "^#{req.params.query}"
+  else {}
   
 app.get "/catalogue/packages", packages.createListing()
 
 app.post "/catalogue/packages", validateSchema(packages.schema.create), users.withUser, packages.create
 app.get "/catalogue/packages/:name", packages.withPackage, packages.read
 app.post "/catalogue/packages/:name", validateSchema(packages.schema.update), packages.withOwnPackage, packages.update
+app.post "/catalogue/packages/:name/bump", validateSchema(packages.schema.update), packages.withOwnPackage, packages.update
 app.del "/catalogue/packages/:name", packages.withOwnPackage, packages.destroy
 
 app.post "/catalogue/packages/:name/maintainers", packages.withOwnPackage, packages.addMaintainer
 app.del "/catalogue/packages/:name/maintainers", packages.withOwnPackage, packages.removeMaintainer
 
-#app.post "/catalogue/packages/:name/versions/", validateSchema(packages.schema.versions.create), packages.withOwnPackage, packages.createVersion
+app.post "/catalogue/packages/:name/versions/", validateSchema(packages.schema.versions.create), packages.withOwnPackage, packages.versions.create
 #app.get "/catalogue/packages/:name/versions/:semver", packages.withPackage, packages.readVersion
-#app.post "/catalogue/packages/:name/versions/:semver", validateSchema(packages.schema.versions.update), packages.withOwnPackage, packages.updateVersion
-#app.del "/catalogue/packages/:name/versions/:semver", packages.withOwnPackage, packages.destroyVersion
+app.post "/catalogue/packages/:name/versions/:semver", validateSchema(packages.schema.versions.update), packages.withOwnPackage, packages.versions.update
+app.del "/catalogue/packages/:name/versions/:semver", packages.withOwnPackage, packages.versions.destroy
 
 # Tags
 tags = require "./resources/tags"
