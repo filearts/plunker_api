@@ -71,7 +71,7 @@ saveNewPlunk = (plunk, cb) ->
 populatePlunk = (json, options = {}) ->
   plunk = options.plunk or new Plunk
   plunk.description = json.description or "Untitled"
-  plunk.private = json.private ? true
+  plunk.private = true unless json.private == false
   plunk.source = json.source
   plunk.user = options.user._id if options.user
   plunk.fork_of = options.parent._id if options.parent
@@ -394,7 +394,8 @@ exports.fork = (req, res, next) ->
   
   if req.apiVersion is 1
     json = req.plunk.toJSON()
-    json.description = req.body.description if req.body.description
+    json.description = req.body.description if req.body.description?
+    json.private = req.body.private if req.body.private?
     
     event.changes.push(e) for e in applyFilesDeltaToPlunk(json, req.body)
     event.changes.push(e) for e in applyTagsDeltaToPlunk(json, req.body)
