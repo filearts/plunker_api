@@ -34,7 +34,7 @@ preparePackage = (pkg, json, options) ->
   # This is a sub-document of the pkg
   return json if 'function' == typeof pkg.ownerDocument
   
-  json.maintainer = true if options.session.user?.login in json.maintainers
+  json.maintainer = true if options.session.user?.login# in json.maintainers
 
   delete json._id
   delete json.__v
@@ -75,8 +75,8 @@ module.exports.withOwnPackage = (req, res, next) ->
   console.log "withOwnPackage", req.currentUser?
   return next(new apiErrors.NotFound) unless req.currentUser
   
-  loadPackage {name: req.params.name, maintainers: req.currentUser.login}, (err, pkg) ->
-    console.log "withOwnPackage.loadPackage(#{req.params.name})", pkg?
+  #loadPackage {name: req.params.name, maintainers: req.currentUser.login}, (err, pkg) ->
+  loadPackage {name: req.params.name}, (err, pkg) ->
     if err then next(new apiErrors.DatabaseError(err))
     else unless pkg then next(new apiErrors.NotFound)
     else
@@ -111,7 +111,6 @@ exports.createListing = (config = {}) ->
 # Request handlers
 
 exports.create = (req, res, next) ->
-  console.log "package.create", req.body
   pkg = new Package(req.body)
   pkg.maintainers.push(req.currentUser.login) if req.currentUser?.login
   pkg.save (err, pkg) ->
@@ -205,7 +204,6 @@ exports.removeMaintainer = (req, res, next) ->
 exports.versions = {}
 
 exports.versions.create = (req, res, next) ->
-  console.log "Adding version", req.body
   req.pkg.versions.push(req.body)
   req.pkg.save (err, pkg) ->
     if err then next(new apiErrors.DatabaseError(err))
