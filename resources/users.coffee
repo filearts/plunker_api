@@ -53,14 +53,14 @@ module.exports.correct = (invalid_id, correct_id) ->
 module.exports.withUser = withUser = (req, res, next) ->
   User.findOne({login: req.params.login}).exec (err, user) ->
     return next(new apiErrors.DatabaseError(err)) if err
-    return next(apiErrors.NotFound) unless user
+    return next(new apiErrors.NotFound) unless user
 
     req.user = user
     next()
 
 module.exports.withCurrentUser = withCurrentUser = (req, res, next) ->
-    return next(apiErrors.NotFound) unless req.currentUser
-    next()
+  return next(new apiErrors.NotFound) unless req.currentUser
+  next()
     
     
 # User-related request handlers

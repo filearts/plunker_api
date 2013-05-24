@@ -2,8 +2,8 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "semver": {
-      "type": "string"
+    "unstable": {
+      "type": "boolean"
     },
     "scripts": {
       "type": "array",
@@ -23,7 +23,7 @@
       "items": {
         "type": "object",
         "properties": {
-          "semver": {
+          "range": {
             "type": "string"
           },
           "name": {

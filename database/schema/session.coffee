@@ -13,8 +13,8 @@ apiUrl = nconf.get("url:api")
 
 
 TokenSchema = new Schema
-  _id: String
-  token: String
+  _id: { type: String, ref: "Plunk" }
+  token: { type: String }
 
 
 SessionSchema = new Schema

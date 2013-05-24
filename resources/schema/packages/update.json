@@ -10,6 +10,14 @@
       "type": "string",
       "default": ""
     },
+    "homepage": {
+      "type": "string",
+      "default": ""
+    },
+    "documentation": {
+      "type": "string",
+      "default": ""
+    },
     "categories": {
       "type": "array",
       "additionalItems": false,

@@ -10,14 +10,18 @@ PackageDependencySchema = new Schema
 
 PackageVersionSchema = new Schema
   semver: String
+  unstable: { type: Boolean, default: false }
   scripts: [String]
   styles: [String]
   dependencies: [PackageDependencySchema]
 
 PackageSchema = new Schema
   name: { type: String, match: /^[-_.a-z0-9]+$/i, index: true, unique: true }
+  created_at: { type: Date, default: Date.now() }
+  versionCount: { type: Number, default: 0 }
   description: { type: String }
   homepage: String
+  documentation: String
   keywords: [{type: String, index: true}]
   versions: [PackageVersionSchema]
   categories: [String]

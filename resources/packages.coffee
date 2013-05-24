@@ -16,7 +16,7 @@ exports.schema =
   update: gate.createSchema(require("./schema/packages/update.json"))
   versions:
     create: gate.createSchema(require("./schema/packages/versions/create.json"))
-    update: gate.createSchema(require("./schema/packages/versions/create.json"))
+    update: gate.createSchema(require("./schema/packages/versions/update.json"))
 
 createLinksObject = (baseUrl, page, pages, limit) ->
   links = {}
@@ -33,6 +33,8 @@ createLinksObject = (baseUrl, page, pages, limit) ->
 preparePackage = (pkg, json, options) ->
   # This is a sub-document of the pkg
   return json if 'function' == typeof pkg.ownerDocument
+  
+  json.maintainer = true if options.session.user?.login in json.maintainers
 
   delete json._id
   delete json.__v
@@ -70,9 +72,11 @@ module.exports.withPackage = (req, res, next) ->
       next()
 
 module.exports.withOwnPackage = (req, res, next) ->
-  return next(apiErrors.NotFound) unless req.currentUser
+  console.log "withOwnPackage", req.currentUser?
+  return next(new apiErrors.NotFound) unless req.currentUser
   
   loadPackage {name: req.params.name, maintainers: req.currentUser.login}, (err, pkg) ->
+    console.log "withOwnPackage.loadPackage(#{req.params.name})", pkg?
     if err then next(new apiErrors.DatabaseError(err))
     else unless pkg then next(new apiErrors.NotFound)
     else
@@ -80,14 +84,14 @@ module.exports.withOwnPackage = (req, res, next) ->
       next()
 
 
-exports.createListing = (config) ->
-  options = {}
-  
-  options.baseUrl ||= "#{apiUrl}/catalogue/packages"
-  options.query ||= {}
-
+exports.createListing = (config = {}) ->
   (req, res, next) ->
-    options = _.extend options, config(req, res) if config
+    options = 
+      if _.isFunction(config) then options = config(req, res)
+      else angular.copy(config)
+    
+    options.baseUrl ||= "#{apiUrl}/catalogue/packages"
+    options.query ||= {}
     
     page = parseInt(req.param("p", "1"), 10)
     limit = parseInt(req.param("pp", "8"), 10)
@@ -107,8 +111,9 @@ exports.createListing = (config) ->
 # Request handlers
 
 exports.create = (req, res, next) ->
+  console.log "package.create", req.body
   pkg = new Package(req.body)
-  pkg.maintainers.push(req.currentUser.login)
+  pkg.maintainers.push(req.currentUser.login) if req.currentUser?.login
   pkg.save (err, pkg) ->
     if err
       if err.code is 11000 then next(new apiErrors.ResourceExists)
@@ -151,6 +156,19 @@ exports.update = (req, res, next) ->
       res.json json
 
 
+exports.bump = (req, res, next) ->
+  req.pkg.bumps++
+  
+  json = req.pkg.toJSON
+    session: req.currentSession
+    transform: preparePackage
+    virtuals: true
+    getters: true
+  
+  res.json json
+
+  req.pkg.update({$inc: {bumps: 1}}) # Send asynch request to update db copy
+
 exports.destroy = (req, res, next) ->
   req.pkg.remove (err) ->
     if err then next(new apiErrors.DatabaseError(err))
@@ -187,6 +205,7 @@ exports.removeMaintainer = (req, res, next) ->
 exports.versions = {}
 
 exports.versions.create = (req, res, next) ->
+  console.log "Adding version", req.body
   req.pkg.versions.push(req.body)
   req.pkg.save (err, pkg) ->
     if err then next(new apiErrors.DatabaseError(err))
@@ -217,15 +236,15 @@ exports.versions.update = (req, res, next) ->
         virtuals: true
         getters: true
       
-      res.json 201, json
+      res.json 200, json
 
 
 exports.versions.destroy = (req, res, next) ->
-  version = _.find req.pkg.versions, (ver) -> ver.semver = req.params.semver
+  version = _.find req.pkg.versions, (ver) -> ver.semver == req.params.semver
   
   return next(new apiErrors.NotFound) unless version
   
-  version.remove()
+  req.pkg.versions.remove(version)
   
   req.pkg.save (err, pkg) ->
     if err then next(new apiErrors.DatabaseError(err))
@@ -236,4 +255,4 @@ exports.versions.destroy = (req, res, next) ->
         virtuals: true
         getters: true
       
-      res.json 201, json
+      res.json 200, json

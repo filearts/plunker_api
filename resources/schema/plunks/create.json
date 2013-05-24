@@ -51,7 +51,7 @@
       "type": "object",
       "additionalProperties": false,
       "patternProperties": {
-        "^[a-zA-z0-9_-]+(\\.[a-zA-Z0-9]+)?$": {
+        "^[\\w\\-. ]+$": {
           "type": "object",
           "properties": {
             "content": {

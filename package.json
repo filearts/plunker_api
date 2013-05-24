@@ -5,7 +5,7 @@
     "api.plnkr.co",
     "api.plunker.co"
   ],
-  "version": "0.4.1-15",
+  "version": "0.4.1-22",
   "private": true,
   "description": "The RESTful backend that powers Plunker",
   "main": "server.js",

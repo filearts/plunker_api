@@ -153,26 +153,24 @@ app.del "/comments/:id", comments.destroy
 # Catalogue
 packages = require "./resources/packages"
 
-app.get "/catalogue/typeahead", packages.createListing()
-app.get "/catalogue/typeahead/:query", packages.createListing (req, res) ->
-  if req.params.query then query: name: $regex: "^#{req.params.query}"
+app.get "/catalogue/packages", packages.createListing (req, res) ->
+  if q = req.param("query") then query: name: $regex: "^#{q}"
   else {}
   
-app.get "/catalogue/packages", packages.createListing()
-
-app.post "/catalogue/packages", validateSchema(packages.schema.create), users.withUser, packages.create
+#app.post "/catalogue/packages", validateSchema(packages.schema.create), packages.create
+app.post "/catalogue/packages", validateSchema(packages.schema.create), users.withCurrentUser, packages.create
 app.get "/catalogue/packages/:name", packages.withPackage, packages.read
-app.post "/catalogue/packages/:name", validateSchema(packages.schema.update), packages.withOwnPackage, packages.update
-app.post "/catalogue/packages/:name/bump", validateSchema(packages.schema.update), packages.withOwnPackage, packages.update
-app.del "/catalogue/packages/:name", packages.withOwnPackage, packages.destroy
+app.post "/catalogue/packages/:name", validateSchema(packages.schema.update), packages.withPackage, users.withCurrentUser, packages.update
+app.post "/catalogue/packages/:name/bump", packages.withPackage, users.withCurrentUser, packages.bump
+app.del "/catalogue/packages/:name", packages.withPackage, users.withCurrentUser, packages.destroy
 
 app.post "/catalogue/packages/:name/maintainers", packages.withOwnPackage, packages.addMaintainer
 app.del "/catalogue/packages/:name/maintainers", packages.withOwnPackage, packages.removeMaintainer
 
-app.post "/catalogue/packages/:name/versions/", validateSchema(packages.schema.versions.create), packages.withOwnPackage, packages.versions.create
+app.post "/catalogue/packages/:name/versions", validateSchema(packages.schema.versions.create), packages.withPackage, users.withCurrentUser, packages.versions.create
 #app.get "/catalogue/packages/:name/versions/:semver", packages.withPackage, packages.readVersion
-app.post "/catalogue/packages/:name/versions/:semver", validateSchema(packages.schema.versions.update), packages.withOwnPackage, packages.versions.update
-app.del "/catalogue/packages/:name/versions/:semver", packages.withOwnPackage, packages.versions.destroy
+app.post "/catalogue/packages/:name/versions/:semver", validateSchema(packages.schema.versions.update), packages.withPackage, users.withCurrentUser, packages.versions.update
+app.del "/catalogue/packages/:name/versions/:semver", packages.withPackage, users.withCurrentUser, packages.versions.destroy
 
 # Tags
 tags = require "./resources/tags"
