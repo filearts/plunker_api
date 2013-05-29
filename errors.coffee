@@ -26,6 +26,9 @@ createErrorClass = (name, classOptions = {}) ->
 
       
 errorTypes =
+  ResourceExists:
+    httpCode: 400
+    message: "Resource exists"
   DatabaseError:
     httpCode: 400
     message: "Database error"
