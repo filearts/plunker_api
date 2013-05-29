@@ -161,7 +161,7 @@ app.get "/catalogue/packages", packages.createListing (req, res) ->
 app.post "/catalogue/packages", validateSchema(packages.schema.create), users.withCurrentUser, packages.create
 app.get "/catalogue/packages/:name", packages.withPackage, packages.read
 app.post "/catalogue/packages/:name", validateSchema(packages.schema.update), packages.withOwnPackage, packages.update
-app.post "/catalogue/packages/:name/bump", packages.withOwnPackage, packages.bump
+app.post "/catalogue/packages/:name/bump", users.withCurrentUser, packages.withPackage, packages.bump
 app.del "/catalogue/packages/:name", packages.withOwnPackage, packages.destroy
 
 app.post "/catalogue/packages/:name/maintainers", packages.withOwnPackage, packages.addMaintainer

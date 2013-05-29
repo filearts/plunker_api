@@ -34,7 +34,7 @@ preparePackage = (pkg, json, options) ->
   # This is a sub-document of the pkg
   return json if 'function' == typeof pkg.ownerDocument
   
-  json.maintainer = true if options.session.user?.login# in json.maintainers
+  json.maintainer = true if options.session?.user?.login# in json.maintainers
 
   delete json._id
   delete json.__v
@@ -166,7 +166,7 @@ exports.bump = (req, res, next) ->
   
   res.json json
 
-  req.pkg.update({$inc: {bumps: 1}}) # Send asynch request to update db copy
+  req.pkg.update({$inc: {bumps: 1}}).exec() # Send asynch request to update db copy
 
 exports.destroy = (req, res, next) ->
   req.pkg.remove (err) ->
@@ -219,10 +219,10 @@ exports.versions.create = (req, res, next) ->
 # There is no specific versions.read
 
 exports.versions.update = (req, res, next) ->
-  version = _.find req.pkg.versions, (ver) -> ver.semver = req.params.semver
+  version = _.find req.pkg.versions, (ver) -> ver.semver == req.params.semver
   
   return next(new apiErrors.NotFound) unless version
-  
+
   _.extend version, req.body
   
   req.pkg.save (err, pkg) ->
