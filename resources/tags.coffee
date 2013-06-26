@@ -1,6 +1,7 @@
 _ = require("underscore")._
 nconf = require("nconf")
 
+plunks = require("./plunks")
 
 
 apiErrors = require("../errors")
@@ -31,3 +32,4 @@ exports.list = (req, res, next) ->
     res.json _.map results, (record) ->
       tag: record._id
       count: record.count
+
