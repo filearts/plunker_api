@@ -160,23 +160,30 @@ app.get "/catalogue/packages", packages.createListing (req, res) ->
 #app.post "/catalogue/packages", validateSchema(packages.schema.create), packages.create
 app.post "/catalogue/packages", validateSchema(packages.schema.create), users.withCurrentUser, packages.create
 app.get "/catalogue/packages/:name", packages.withPackage, packages.read
-app.post "/catalogue/packages/:name", validateSchema(packages.schema.update), packages.withOwnPackage, packages.update
+app.post "/catalogue/packages/:name", validateSchema(packages.schema.update), users.withCurrentUser, packages.withPackage, packages.update
 app.post "/catalogue/packages/:name/bump", users.withCurrentUser, packages.withPackage, packages.bump
 app.del "/catalogue/packages/:name", packages.withOwnPackage, packages.destroy
 
 app.post "/catalogue/packages/:name/maintainers", packages.withOwnPackage, packages.addMaintainer
 app.del "/catalogue/packages/:name/maintainers", packages.withOwnPackage, packages.removeMaintainer
 
-app.post "/catalogue/packages/:name/versions", validateSchema(packages.schema.versions.create), packages.withOwnPackage, packages.versions.create
+app.post "/catalogue/packages/:name/versions", validateSchema(packages.schema.versions.create), users.withCurrentUser, packages.withPackage, packages.versions.create
 #app.get "/catalogue/packages/:name/versions/:semver", packages.withPackage, packages.readVersion
-app.post "/catalogue/packages/:name/versions/:semver", validateSchema(packages.schema.versions.update), packages.withOwnPackage, packages.versions.update
+app.post "/catalogue/packages/:name/versions/:semver", validateSchema(packages.schema.versions.update), users.withCurrentUser, packages.withPackage, packages.versions.update
 app.del "/catalogue/packages/:name/versions/:semver", packages.withOwnPackage, packages.versions.destroy
 
 # Tags
 tags = require "./resources/tags"
 
 app.get "/tags", tags.list
-
+app.get "/tags/:taglist", plunks.createListing (req, res) ->
+  taglist = req.params.taglist.split(",")
+  
+  return res.json [] unless taglist.length
+  
+  query: if taglist.length > 1 then {tags: {$all: taglist}} else {tags: taglist[0]}
+  baseUrl: "#{apiUrl}/tags/#{req.params.taglist}"
+  sort: "-score -updated_at"
 
 app.get "/robots.txt", (req, res, next) ->
   res.send """

@@ -90,23 +90,23 @@ preparePlunk = (plunk, json, options) ->
   
   corrected = false
 
-  if plunk.voters?.length != plunk.thumbs
-    console.log "[INFO] Correcting thumbs for #{plunk.id} to #{plunk.voters.length}"
+  if (was = plunk.voters?.length) != plunk.thumbs
+    console.log "[INFO] Correcting thumbs for #{plunk.id} from #{was} to #{plunk.voters.length}"
 
     plunk.thumbs = plunk.voters.length
     
     corrected = true
   
-  if plunk.forks?.length != plunk.forked
-    console.log "[INFO] Correcting forks for #{plunk.id} to #{plunk.forks.length}"
+  if (was = plunk.forks?.length) != plunk.forked
+    console.log "[INFO] Correcting forks for #{plunk.id} from #{was} to #{plunk.forks.length}"
     
     plunk.forked = plunk.forks.length
     
     corrected = true
 
-  if plunk.score and plunk.score != plunk.created_at.valueOf() + calculateScore(plunk.thumbs)
+  if (was = plunk.score) and plunk.score != plunk.created_at.valueOf() + calculateScore(plunk.thumbs)
     delta = calculateScore(plunk.thumbs)
-    console.log "[INFO] Correcting score for #{plunk.id} to #{delta / (1000 * 60 * 60)}"
+    console.log "[INFO] Correcting score for #{plunk.id} from #{was} to #{delta / (1000 * 60 * 60)}"
     plunk.score = json.score = plunk.created_at.valueOf() + delta
     
     corrected = true

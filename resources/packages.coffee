@@ -75,8 +75,8 @@ module.exports.withOwnPackage = (req, res, next) ->
   console.log "withOwnPackage", req.currentUser?
   return next(new apiErrors.NotFound) unless req.currentUser
   
-  #loadPackage {name: req.params.name, maintainers: req.currentUser.login}, (err, pkg) ->
-  loadPackage {name: req.params.name}, (err, pkg) ->
+  loadPackage {name: req.params.name, maintainers: req.currentUser.login}, (err, pkg) ->
+  #loadPackage {name: req.params.name}, (err, pkg) ->
     if err then next(new apiErrors.DatabaseError(err))
     else unless pkg then next(new apiErrors.NotFound)
     else
