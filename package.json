@@ -5,12 +5,13 @@
     "api.plnkr.co",
     "api.plunker.co"
   ],
-  "version": "0.4.1-27",
+  "version": "0.4.9",
   "private": true,
   "description": "The RESTful backend that powers Plunker",
   "main": "server.js",
   "dependencies": {
     "underscore": "~1.4.4",
+    "coffee-script": "~1.6.3",
     "analytics-node": "~0.3.0",
     "mime": "~1.2.9",
     "mongoose": "~3.6.0",
@@ -33,7 +34,7 @@
     "start": "node server.js"
   },
   "engines": {
-    "node": "0.8.x"
+    "node": "0.10.x"
   },
   "repository": {
     "type": "git",

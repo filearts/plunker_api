@@ -17,7 +17,8 @@ exports.list = (req, res, next) ->
   pipeline.push $unwind:
     "$tags"
   pipeline.push $group:
-    _id: "$tags"
+    _id: 
+      $toLower: "$tags"
     count: $sum: 1
   if q = req.param("q") then pipeline.push $match:
     _id: $regex: "^#{q}", $options: "i"

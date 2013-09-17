@@ -91,7 +91,7 @@ preparePlunk = (plunk, json, options) ->
   corrected = false
 
   if (was = plunk.voters?.length) != plunk.thumbs
-    console.log "[INFO] Correcting thumbs for #{plunk.id} from #{was} to #{plunk.voters.length}"
+    console.log "[INFO] Correcting thumbs for #{plunk.id} from #{plunk.thumbs} to #{plunk.voters.length}"
 
     plunk.thumbs = plunk.voters.length
     
@@ -394,7 +394,7 @@ exports.fork = (req, res, next) ->
   
   if req.apiVersion is 1
     json = req.plunk.toJSON()
-    json.description = req.body.description if req.body.description?
+    json.description = req.body.description if req.body.description
     json.private = req.body.private if req.body.private?
     
     event.changes.push(e) for e in applyFilesDeltaToPlunk(json, req.body)

@@ -2,9 +2,6 @@ express = require("express")
 nconf = require("nconf")
 cors = require("cors")
 
-#memwatch = require("memwatch");
-
-#memwatch.on "leak", (d) -> console.log "[LEAK]", d
 
 # Set defaults in nconf
 require "./configure"
@@ -39,26 +36,7 @@ app.use app.router
 app.use errorHandler
 app.use express.errorHandler()
 
-###
-hd = null
 
-app.get "/debug/start", (req, res, next) ->
-  if hd then res.send 400, "Heap diff in progress"
-  else
-    hd = new memwatch.HeapDiff
-    res.send 200, "Heap diff started"
-
-app.get "/debug/end", (req, res, next) ->
-  if hd then res.json hd.end()
-  else res.send 400, "Heap diff not in progress"
-  
-  hd = null
-  
-app.get "/debug/gc", (req, res, next) ->
-  memwatch.gc()
-  
-  res.send "Garbage collected"
-###
 
 # Sessions
 sessions = require "./resources/sessions"

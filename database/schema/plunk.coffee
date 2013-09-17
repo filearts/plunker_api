@@ -41,7 +41,7 @@ PlunkSchema = new Schema
   created_at: { type: Date, 'default': Date.now }
   updated_at: { type: Date, 'default': Date.now }
   token: { type: String, 'default': genid.bind(null, 16) }
-  'private': { type: Boolean, 'default': false }
+  'private': { type: Boolean, 'default': false, index: true }
   template: { type: Boolean, 'default': false }
   source: {}
   files: [PlunkFileSchema]

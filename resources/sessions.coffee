@@ -28,12 +28,14 @@ module.exports.createSession = createSession = (user, cb) ->
 module.exports.loadSession = loadSession = (sessid, cb) ->
   return cb() unless sessid and sessid.length
 
-  Session.findById(sessid).populate("user").exec (err, session) ->
+  sessionData =
+    last_access: Date.now()
+    expires_at: Date.now() + 1000 * 60 * 60 * 24 * 7 * 2 # Two weeks
+    
+  query = Session.findByIdAndUpdate sessid, sessionData
+  query.populate("user")
+  query.exec (err, session) ->
     if err then cb(err)
-    else unless session then cb()
-    else if Date.now() - session.last_access.valueOf() > nconf.get("session:max_age")
-      session.remove()
-      cb()
     else cb(null, session)
 
 
