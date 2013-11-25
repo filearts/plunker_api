@@ -2,9 +2,6 @@ mongoose = require("mongoose")
 nconf = require("nconf")
 genid = require("genid")
 
-lastModified = require("../plugins/lastModified")
-
-
 apiUrl = nconf.get("url:api")
 
 
@@ -21,6 +18,7 @@ SessionSchema = new Schema
   user:
     type: Schema.ObjectId
     ref: "User"
+  user_info: {}
   last_access: { type: Date, index: true, 'default': Date.now }
   public_id: { type: String, 'default': genid }
   auth: {}
@@ -30,14 +28,15 @@ SessionSchema.virtual("url").get -> apiUrl + "/sessions/#{@_id}"
 SessionSchema.virtual("user_url").get -> apiUrl + "/sessions/#{@_id}/user"
 SessionSchema.virtual("age").get -> Date.now() - @last_access
 
-SessionSchema.plugin(lastModified)
-
 SessionSchema.set "toJSON",
   virtuals: true
   getters: true
   transform: (session, json, options) ->
     json.id = json._id
     
+    json.user = json.user_info if json.user_info
+    
+    delete json.user_info
     delete json._id
     delete json.__v
     

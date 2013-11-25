@@ -76,6 +76,7 @@ populatePlunk = (json, options = {}) ->
   plunk.user = options.user._id if options.user
   plunk.fork_of = options.parent._id if options.parent
   plunk.tags.push(tag) for tag in json.tags unless options.skipTags
+  plunk.type = if options.type in ["plunk", "template"] then options.type else "plunk"
   
   unless options.skipFiles then for filename, file of json.files
     plunk.files.push
@@ -268,11 +269,11 @@ exports.ownsPlunk = (req, res, next) ->
 exports.createListing = (config) ->
 
   (req, res, next) ->
-    options = config(req, res) if config
+    options = config(req, res) if _.isFunction(config)
     options ||= {}
     
     options.baseUrl ||= "#{apiUrl}/plunks"
-    options.query ||= {}
+    options.query ||= type: "plunk"
     
     page = parseInt(req.param("p", "1"), 10)
     limit = parseInt(req.param("pp", "8"), 10)
@@ -287,6 +288,8 @@ exports.createListing = (config) ->
         ]
       else
         options.query.private = $ne: true
+
+    console.log "[DEBUG] Listing plunks", options.query
         
     # Build the Mongoose Query
     query = Plunk.find(options.query)
@@ -335,10 +338,13 @@ exports.create = (req, res, next) ->
   plunk = populatePlunk(req.body, user: req.currentUser)
   plunk.history.push(event)
 
+  if !req.currentUser and !plunk.private
+    return next(new apiErrors.NotFound)
+  
   saveNewPlunk plunk, (err, plunk) ->
     if err then next(new apiErrors.DatabaseError(err))
     else
-      unless req.user and req.currentSession and req.currentSession.keychain
+      if !req.currentUser and req.currentSession and req.currentSession.keychain
         req.currentSession.keychain.push _id: plunk._id, token: plunk.token
         req.currentSession.save()
 
@@ -390,6 +396,9 @@ exports.update = (req, res, next) ->
 exports.fork = (req, res, next) ->
   return next(new Error("request.plunk is required for update()")) unless req.plunk
   
+  if !req.currentUser
+    req.body.private = true # Force forked plunks to be private for unlogged users
+  
   event = createEvent "fork", req.currentUser
   
   if req.apiVersion is 1
@@ -411,7 +420,7 @@ exports.fork = (req, res, next) ->
   saveNewPlunk fork, (err, plunk) ->
     if err then next(new apiErrors.DatabaseError(err))
     else
-      unless req.currentUser and req.currentSession and req.currentSession.keychain
+      if !req.currentUser and req.currentSession and req.currentSession.keychain
         req.currentSession.keychain.push _id: plunk._id, token: plunk.token
         req.currentSession.save()
       

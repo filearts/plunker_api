@@ -22,6 +22,7 @@ apiUrl = nconf.get("url:api")
 errorHandler = (err, req, res, next) ->
   if err instanceof apiErrors.ApiError
     res.json err.httpCode, err.toJSON()
+    console.log "[ERR]", err.toJSON()
   else next(err)
 
 
@@ -41,8 +42,12 @@ app.use express.errorHandler()
 # Sessions
 sessions = require "./resources/sessions"
 
+
 # Users
 users = require "./resources/users"
+
+
+
 
 
 app.get "/sessions", sessions.findOrCreate
@@ -51,6 +56,12 @@ app.get "/sessions/:id", sessions.read
 
 app.post "/sessions/:id/user", sessions.withSession, sessions.setUser
 app.del "/sessions/:id/user", sessions.withSession, sessions.unsetUser
+
+
+# Make sure all non-user, non-session put/post requests have a session assigned
+app.put "*", sessions.withCurrentSession
+app.post "*", sessions.withCurrentSession
+
 
 
 # Plunks
@@ -97,6 +108,18 @@ app.get "/plunks/:id/forks", plunks.createListing (req, res) ->
   query: {fork_of: req.params.id}
   baseUrl: "#{apiUrl}/plunk/#{req.params.id}/forks"
   sort: "-updated_at"
+
+
+
+app.get "/templates", plunks.createListing (req, res) ->
+  query = type: "template"
+  
+  if taglist = req.query.taglist then query.tags = {$all: taglist.split(",")}
+  
+  baseUrl: "#{apiUrl}/templates"
+  query: query
+  sort: "-thumbs -updated_at"
+
 
 
 

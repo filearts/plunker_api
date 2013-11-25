@@ -6,7 +6,7 @@ mongoose = require("mongoose")
 
 PackageDependencySchema = new Schema
   name: String
-  semver: String
+  range: String
 
 PackageVersionSchema = new Schema
   semver: String

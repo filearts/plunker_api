@@ -1,3 +1,7 @@
+if (process.env.STRONG_APIKEY) {
+  require("strong-agent").profile(process.env.STRONG_APIKEY, "plunker-api");
+}
+
 require("coffee-script");
 
 //process.env.NODE_ENV = "production";
@@ -17,7 +21,7 @@ serverDomain.run(function(){
     
     // On error dispose of the domain
     reqd.on('error', function (error) {
-      console.error('[ERR]', error.code, error.message, req.url);
+      console.log('[ERR]', error.code, error.message, req.url);
       reqd.dispose();
     });
 
@@ -25,11 +29,15 @@ serverDomain.run(function(){
     server(req, res);
     
   }).listen(nconf.get("PORT"), function(){
-    console.log("Server started");
+    console.log("[OK] Server started");
   });
   
 });
 
 serverDomain.on("error", function (error) {
-  console.error('[ERR]', "Server level error", error.code, error.message);
-})
+  console.log('[ERR]', "Server level error", error.code, error.message);
+});
+
+process.on('uncaughtException', function(err) {
+  console.log("[ERR] Uncaught exception: " + err);
+});

@@ -53,6 +53,7 @@ PlunkSchema = new Schema
   voters: [{ type: Schema.ObjectId, ref: "Users", index: true }]
   rememberers: [{ type: Schema.ObjectId, ref: "Users", index: true }]
   history: [PlunkHistorySchema]
+  type: { type: String, 'default': "plunk", 'enum': "plunk template".split(" "), index: true }
   views: { type: Number, 'default': 0 }
   forked: { type: Number, 'default': 0 }
   

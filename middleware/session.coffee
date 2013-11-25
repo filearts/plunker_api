@@ -7,15 +7,14 @@ module.exports.middleware = (config = {}) ->
     if req.query.sessid then sessid = req.query.sessid
     else if auth = req.get("authorization") then [header, sessid] = auth.match(/^token (\S+)$/i)
     
-    sessions.loadSession sessid, (err, session) ->
-      return next(err) if err
-      return next() unless session
-
-      session.last_access = new Date
-
-      req.currentSession = session
-      req.currentUser = session.user if session.user
-      
+    if sessid
+      sessions.loadSession sessid, (err, session) ->
+        return next(err) if err
+        return next() unless session
+  
+        req.currentSession = session
+        req.currentUser = session.user if session.user
+        
+        next()
+    else
       next()
-      
-      session.save() # We do this after passing on the route and don't worry about success

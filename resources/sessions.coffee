@@ -19,8 +19,10 @@ module.exports.createSession = createSession = (user, cb) ->
   session =
     last_access: new Date
     keychain: {}
-
-  session.user = user._id if user
+  
+  if user
+    session.user = user._id 
+    session.user_info = user.toJSON()
   
   Session.create(session, cb)
 
@@ -33,7 +35,6 @@ module.exports.loadSession = loadSession = (sessid, cb) ->
     expires_at: Date.now() + 1000 * 60 * 60 * 24 * 7 * 2 # Two weeks
     
   query = Session.findByIdAndUpdate sessid, sessionData
-  query.populate("user")
   query.exec (err, session) ->
     if err then cb(err)
     else cb(null, session)
@@ -50,13 +51,17 @@ module.exports.withSession = (req, res, next) ->
       req.session = session
       next()
 
+module.exports.withCurrentSession = (req, res, next) ->
+  if req.currentSession then next()
+  else next(new apiErrors.NotFound)
 
 
 # Session-related request handlers
 
 module.exports.findOrCreate = (req, res, next) ->
-  if req.currentSession then res.json req.currentSession.toJSON()
+  if req.session then res.json req.session.toJSON()
   else createSession null, (err, session) ->
+    console.log "createSession", arguments...
     if err then next(new apiErrors.DatabaseError(err))
     else if session then res.json session.toJSON()
     else
@@ -102,6 +107,7 @@ module.exports.setUser = (req, res, next) ->
       #  created: user.created_at
       
       req.session.user = user._id
+      req.session.user_info = user.toJSON()
       req.session.auth =
         service_name: "github"
         service_token: token
@@ -116,6 +122,7 @@ module.exports.setUser = (req, res, next) ->
 
 module.exports.unsetUser = (req, res, next) ->
   req.session.user = null
+  req.session.user_info = null
   req.session.auth = null
 
   req.session.save (err, session) ->
