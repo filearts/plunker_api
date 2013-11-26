@@ -288,8 +288,6 @@ exports.createListing = (config) ->
         ]
       else
         options.query.private = $ne: true
-
-    console.log "[DEBUG] Listing plunks", options.query
         
     # Build the Mongoose Query
     query = Plunk.find(options.query)

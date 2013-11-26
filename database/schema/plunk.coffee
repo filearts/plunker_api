@@ -63,7 +63,7 @@ PlunkSchema.index(views: -1, updated_at: -1)
 PlunkSchema.index(forked: -1, updated_at: -1)
 
 PlunkSchema.virtual("url").get -> apiUrl + "/plunks/#{@_id}"
-PlunkSchema.virtual("raw_url").get -> runUrl + "/plunks/#{@_id}/"
+PlunkSchema.virtual("raw_url").get -> runUrl.replace("://", "://#{@_id}.plunk.")# + "/plunks/#{@_id}/"
 PlunkSchema.virtual("comments_url").get -> wwwUrl + "/#{@_id}/comments"
 
 exports.PlunkSchema = PlunkSchema
