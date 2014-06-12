@@ -9,7 +9,6 @@ apiUrl = nconf.get('url:api')
 wwwUrl = nconf.get('url:www')
 runUrl = nconf.get('url:run')
 
-
 plunkerDb = mongoose.createConnection "mongodb:#{url.format(nconf.get("mongodb"))}",
   server:
     auto_reconnect: true
@@ -33,3 +32,5 @@ module.exports =
   User: plunkerDb.model "User", require("./schema/user").UserSchema
   Plunk: plunkerDb.model "Plunk", require("./schema/plunk").PlunkSchema
   Package:plunkerDb.model "Package", require("./schema/package").PackageSchema
+
+

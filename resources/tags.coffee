@@ -1,5 +1,6 @@
 _ = require("underscore")._
 nconf = require("nconf")
+LRU = require("lru-cache")
 
 plunks = require("./plunks")
 
@@ -7,6 +8,7 @@ plunks = require("./plunks")
 apiErrors = require("../errors")
 apiUrl = nconf.get('url:api')
 database = require("../database")
+cache = LRU(max: 200, maxAge: 1000 * 60 * 60 * 24)
 
 {Plunk} = database
 

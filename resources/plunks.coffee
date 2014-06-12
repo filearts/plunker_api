@@ -1,9 +1,10 @@
-_ = require("underscore")._
+_ = require("lodash")
 nconf = require("nconf")
 genid = require("genid")
 diff_match_patch = require("googlediff")
 gate = require("json-gate")
 analytics = require("analytics-node")
+LRU = require("lru-cache")
 
 
 
@@ -42,6 +43,67 @@ createEvent = (type, user) ->
 
   event
 
+# Versions are 0-indexed
+dmp = new diff_match_patch()
+verCache = LRU(128) # 500 is an arbitrary number
+revertTo = (current, version, cb) ->
+  # Return current if requesting a version that exceeds current version
+  return current unless current.history?.length
+  return current if version >= current.history.length
+  
+  # Don't cache plunks for people who are the owners
+  if !current.token and cached = verCache.get("#{current.id}/#{version}")
+    console.log "[OK] Cache hit", "#{current.id}/#{version}"
+    return cached 
+  else
+    console.log "[OK] Cache miss", "#{current.id}/#{version}"
+
+  size = (current.history.length or 1) - 1
+  rel = size - version
+  
+  rename = (fn, to) ->
+    if file = current.files[fn]
+      file.filename = to
+      delete current.files[fn]
+      current.files[to] = file
+  
+  patch = (fn, patches) ->
+    if file = current.files[fn]
+      [file.content] = dmp.patch_apply(patches, file.content)
+  
+  remove = (fn) ->
+    delete current.files[fn]
+  try
+    for i in [0...rel]
+      for chg, j in current.history[size - i].changes
+        # The changed file existed previously
+        if chg.pn
+          if chg.fn
+            # File changed
+            if chg.pl
+              #console.log "Patching", chg.fn, "to", chg.pl
+              patch(chg.fn, dmp.patch_fromText(chg.pl))
+            # File renamed
+            if chg.pn != chg.fn
+              #console.log "Renaming", chg.pn, "to", chg.fn
+              rename(chg.fn, chg.pn)
+          else # Deleted the file
+            #console.log "Adding", chg.fn, chg.pl
+            current.files[chg.pn] =
+              filename: chg.pn
+              content: chg.pl
+        else if chg.fn
+          #console.log "Deleting", chg.fn
+          remove(chg.fn)
+  catch e
+    console.trace "[ERR] Failed to revert #{current.id} to version #{version}:", e
+  
+  current.currentVersion = version
+
+  unless current.token
+    verCache.set "#{current.id}/#{version}", current
+  
+  current
 
 ownsPlunk = (session, json) ->
   owner = false
@@ -120,13 +182,19 @@ preparePlunk = (plunk, json, options) ->
   delete json.rememberers
   delete json._id
   delete json.__v
-  
   if json.files then json.files = do ->
     files = {}
     for file in json.files
       file.raw_url = "#{json.raw_url}#{file.filename}"
       files[file.filename] = file
     files
+
+  # Unless the current user owns the plunk o
+  if !json.token and json.frozen_at and json.history
+    json.frozen_version ?= json.history.length - 1
+    json = revertTo json, json.frozen_version   
+    json.history = json.history.slice(0, json.frozen_version + 1) if json.history
+    
 
   json.thumbed = options.session?.user? and plunk.voters?.indexOf("#{options.session.user._id}") >= 0
   json.remembered = options.session?.user? and plunk.rememberers?.indexOf("#{options.session.user._id}") >= 0
@@ -266,8 +334,7 @@ exports.ownsPlunk = (req, res, next) ->
   return
   
 
-exports.createListing = (config) ->
-
+exports.createListing = (config = {}) ->
   (req, res, next) ->
     options = config(req, res) if _.isFunction(config)
     options ||= {}
@@ -288,15 +355,17 @@ exports.createListing = (config) ->
         ]
       else
         options.query.private = $ne: true
-        
+    else if options.onlyPublic
+      options.query.private = $ne: true
+    
     # Build the Mongoose Query
     query = Plunk.find(options.query)
     query.sort(options.sort or "-updated_at")
     query.select("-files") unless req.param("files") is "yes" # We exclude files from plunk listings
     query.select("-files.content") if req.param("file.contents") is "no"
     query.select("-history") # We exclude history from plunk listings
-    
     query.populate("user").paginate page, limit, (err, plunks, count, pages, current) ->
+      
       if err then next(new apiErrors.DatabaseError(err))
       else
         res.links createLinksObject(options.baseUrl, current, pages, limit)
@@ -325,6 +394,8 @@ exports.read = (req, res, next) ->
         transform: preparePlunk
         virtuals: true
         getters: true
+      
+      json = revertTo json, parseInt(req.param("v"), 10) if req.param("v")
       
       res.json json
       
@@ -391,6 +462,31 @@ exports.update = (req, res, next) ->
 
   return
 
+exports.freeze = (req, res, next) ->
+  return next(new Error("request.plunk is required for freeze()")) unless req.plunk
+
+  json = req.plunk.toJSON
+    user: req.currentUser
+    session: req.currentSession
+    transform: preparePlunk
+    virtuals: true
+    getters: true
+  
+  json = revertTo json, parseInt(req.param("v"), 10) if req.param("v")
+  
+  req.plunk.frozen_at = new Date
+  req.plunk.frozen_version = if req.param("v") then parseInt(req.param("v"), 10) else req.plunk.history.length - 1
+  
+  req.plunk.save (err, plunk) ->
+    json = plunk.toJSON
+      session: req.currentSession
+      transform: preparePlunk
+      virtuals: true
+      getters: true
+    
+    if err then next(new apiErrors.DatabaseError(err))
+    else res.send 200, json
+      
 exports.fork = (req, res, next) ->
   return next(new Error("request.plunk is required for update()")) unless req.plunk
   

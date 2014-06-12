@@ -56,6 +56,8 @@ PlunkSchema = new Schema
   type: { type: String, 'default': "plunk", 'enum': "plunk template".split(" "), index: true }
   views: { type: Number, 'default': 0 }
   forked: { type: Number, 'default': 0 }
+  frozen_version: { type: Number }
+  frozen_at: { type: Date, 'default': 0, index: true }
   
 PlunkSchema.index(score: -1, updated_at: -1)
 PlunkSchema.index(thumbs: -1, updated_at: -1)
@@ -63,7 +65,7 @@ PlunkSchema.index(views: -1, updated_at: -1)
 PlunkSchema.index(forked: -1, updated_at: -1)
 
 PlunkSchema.virtual("url").get -> apiUrl + "/plunks/#{@_id}"
-PlunkSchema.virtual("raw_url").get -> runUrl.replace("://", "://#{@_id}.plunk.")# + "/plunks/#{@_id}/"
+PlunkSchema.virtual("raw_url").get -> runUrl + "/plunks/#{@_id}/"
 PlunkSchema.virtual("comments_url").get -> wwwUrl + "/#{@_id}/comments"
 
 exports.PlunkSchema = PlunkSchema

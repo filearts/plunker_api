@@ -72,15 +72,22 @@ app.get "/plunks", plunks.createListing()
 app.get "/plunks/trending", plunks.createListing (req, res) ->
   baseUrl: "#{apiUrl}/plunks/trending"
   sort: "-score -updated_at"
+  cache: "1m" # One minute
 app.get "/plunks/popular", plunks.createListing (req, res) ->
   baseUrl: "#{apiUrl}/plunks/popular"
   sort: "-thumbs -updated_at"
+  cache: 60 * 1 # One minute
+
 app.get "/plunks/views", plunks.createListing (req, res) ->
   baseUrl: "#{apiUrl}/plunks/views"
   sort: "-views -updated_at"
+  cache: 60 * 1 # One minute
+
 app.get "/plunks/forked", plunks.createListing (req, res) ->
   baseUrl: "#{apiUrl}/plunks/forked"
   sort: "-forked -updated_at"
+  cache: 60 * 1 # One minute
+
 
 app.get "/plunks/remembered", users.withCurrentUser, plunks.createListing (req, res) ->
   sort: "-updated_at"
@@ -88,22 +95,24 @@ app.get "/plunks/remembered", users.withCurrentUser, plunks.createListing (req, 
   query: {rememberers: req.currentUser._id}
   baseUrl: "#{apiUrl}/users/#{req.params.login}/remembered"
 
-app.post "/plunks", validateSchema(plunks.schema.create), plunks.create
+app.post "/plunks", sessions.withCurrentSession, validateSchema(plunks.schema.create), plunks.create
 app.get "/plunks/:id", plunks.withPlunk, plunks.read
-app.post "/plunks/:id", validateSchema(plunks.schema.update), plunks.withPlunk, plunks.ownsPlunk, plunks.update
+app.post "/plunks/:id", sessions.withCurrentSession, validateSchema(plunks.schema.update), plunks.withPlunk, plunks.ownsPlunk, plunks.update
 app.del "/plunks/:id", plunks.withPlunk, plunks.ownsPlunk, plunks.destroy
 
-app.post "/plunks/:id/thumb", plunks.withPlunk, plunks.setThumbed
-app.del "/plunks/:id/thumb", plunks.withPlunk, plunks.unsetThumbed
+app.post "/plunks/:id/freeze", sessions.withCurrentSession, plunks.withPlunk, plunks.ownsPlunk, plunks.freeze
 
-app.post "/plunks/:id/remembered", plunks.withPlunk, plunks.setRemembered
-app.del "/plunks/:id/remembered", plunks.withPlunk, plunks.unsetRemembered
+app.post "/plunks/:id/thumb", sessions.withCurrentSession, plunks.withPlunk, plunks.setThumbed
+app.del "/plunks/:id/thumb", sessions.withCurrentSession, plunks.withPlunk, plunks.unsetThumbed
+
+app.post "/plunks/:id/remembered", sessions.withCurrentSession, plunks.withPlunk, plunks.setRemembered
+app.del "/plunks/:id/remembered", sessions.withCurrentSession, plunks.withPlunk, plunks.unsetRemembered
 
 forkSchema = (req) ->
   if req.apiVersion is 0 then plunks.schema.create
   else if req.apiVersion is 1 then plunks.schema.fork
 
-app.post "/plunks/:id/forks", validateSchema(forkSchema), plunks.withPlunk, plunks.fork
+app.post "/plunks/:id/forks", sessions.withCurrentSession, validateSchema(forkSchema), plunks.withPlunk, plunks.fork
 app.get "/plunks/:id/forks", plunks.createListing (req, res) ->
   query: {fork_of: req.params.id}
   baseUrl: "#{apiUrl}/plunk/#{req.params.id}/forks"
@@ -186,11 +195,11 @@ app.get "/tags/:taglist", plunks.createListing (req, res) ->
   baseUrl: "#{apiUrl}/tags/#{req.params.taglist}"
   sort: "-score -updated_at"
 
-app.get "/robots.txt", (req, res, next) ->
-  res.send """
-    User-Agent: *
-    Disallow: /
-  """
+#app.get "/robots.txt", (req, res, next) ->
+#  res.send """
+#    User-Agent: *
+#    Disallow: /
+#  """
 
 app.get "/favicon.ico", (req, res, next) ->
   res.send("")

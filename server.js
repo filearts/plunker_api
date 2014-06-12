@@ -1,7 +1,3 @@
-if (process.env.STRONG_APIKEY) {
-  require("strong-agent").profile(process.env.STRONG_APIKEY, "plunker-api");
-}
-
 require("coffee-script");
 
 //process.env.NODE_ENV = "production";

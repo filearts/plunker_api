@@ -32,7 +32,7 @@ errorTypes =
   DatabaseError:
     httpCode: 400
     message: "Database error"
-    initialize: (err) -> console.error("[ERR] #{@message}", err)
+    initialize: (err) -> console.error("[ERR] #{@message}", err, err.stack)
   InvalidBody:
     httpCode: 400
     message: "Invalid payload"
