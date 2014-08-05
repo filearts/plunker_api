@@ -9,9 +9,7 @@ apiUrl = nconf.get('url:api')
 wwwUrl = nconf.get('url:www')
 runUrl = nconf.get('url:run')
 
-plunkerDb = mongoose.createConnection "mongodb:#{url.format(nconf.get("mongodb"))}",
-  server:
-    auto_reconnect: true
+plunkerDb = mongoose.createConnection nconf.get("mongodb:uri")
 plunkerDbTimeout = setTimeout(errorConnecting, 1000 * 30)
 
 errorConnecting = ->

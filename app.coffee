@@ -25,10 +25,16 @@ errorHandler = (err, req, res, next) ->
     console.log "[ERR]", err.toJSON()
   else next(err)
 
+#allowedCorsOrigins = [nconf.get('url:www'), nconf.get('url:embed'), "http://plnkr.co"]
+corsOptions =
+  origin: true
+  exposeHeaders: "Link"
+  maxAge: 60
+    
 
 app.set "jsonp callback", true
 
-app.use require("./middleware/cors").middleware()
+app.use cors(corsOptions)
 app.use express.bodyParser()
 app.use require("./middleware/version").middleware()
 app.use require("./middleware/nocache").middleware()

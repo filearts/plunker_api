@@ -15,7 +15,7 @@ PlunkFileSchema = new Schema
   filename: String
   content: String
   
-PlunkFileSchema.virtual("mime").get -> mime.lookup(@filename, "text/plain")
+#PlunkFileSchema.virtual("mime").get -> mime.lookup(@filename, "text/plain")
   
 PlunkVoteSchema = new Schema
   user: { type: Schema.ObjectId, ref: "User" }
