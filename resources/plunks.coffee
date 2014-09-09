@@ -53,10 +53,7 @@ revertTo = (current, version, cb) ->
   
   # Don't cache plunks for people who are the owners
   if !current.token and cached = verCache.get("#{current.id}/#{version}")
-    console.log "[OK] Cache hit", "#{current.id}/#{version}"
     return cached 
-  else
-    console.log "[OK] Cache miss", "#{current.id}/#{version}"
 
   size = (current.history.length or 1) - 1
   rel = size - version

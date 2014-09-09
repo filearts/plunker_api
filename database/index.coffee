@@ -17,6 +17,9 @@ errorConnecting = ->
   process.exit(1)
   
 plunkerDb.on "open", -> clearTimeout(plunkerDbTimeout)
+plunkerDb.on "error", (err) -> console.log "[ERR] Database error:", err
+plunkerDb.on "disconnected", (err) -> console.log "[WARN] Database disconnected:", arguments...
+plunkerDb.on "reconnected", (err) -> console.log "[WARN] Database reconnected:", arguments...
 
 
 

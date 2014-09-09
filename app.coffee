@@ -1,4 +1,5 @@
 express = require("express")
+morgan = require("morgan")
 nconf = require("nconf")
 cors = require("cors")
 
@@ -14,6 +15,7 @@ apiErrors = require("./errors")
 
 app = module.exports = express()
 apiUrl = nconf.get("url:api")
+wwwUrl = nconf.get("url:www")
 
 
 {Session} = require("./database")
@@ -34,7 +36,8 @@ corsOptions =
 
 app.set "jsonp callback", true
 
-app.use cors(corsOptions)
+app.use morgan("short")
+app.use require("./middleware/cors").middleware()
 app.use express.bodyParser()
 app.use require("./middleware/version").middleware()
 app.use require("./middleware/nocache").middleware()
@@ -53,6 +56,11 @@ sessions = require "./resources/sessions"
 users = require "./resources/users"
 
 
+app.get "/proxy.html", (req, res) ->
+  res.send """
+    <!DOCTYPE HTML>
+    <script src="//cdn.rawgit.com/jpillora/xdomain/gh-pages/dist/0.6/xdomain.min.js" master="#{wwwUrl}"></script>
+  """
 
 
 
