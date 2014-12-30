@@ -483,6 +483,22 @@ exports.freeze = (req, res, next) ->
     
     if err then next(new apiErrors.DatabaseError(err))
     else res.send 200, json
+
+exports.unfreeze = (req, res, next) ->
+  return next(new Error("request.plunk is required for freeze()")) unless req.plunk
+  
+  req.plunk.frozen_at = undefined
+  req.plunk.frozen_version = undefined
+  
+  req.plunk.save (err, plunk) ->
+    json = plunk.toJSON
+      session: req.currentSession
+      transform: preparePlunk
+      virtuals: true
+      getters: true
+    
+    if err then next(new apiErrors.DatabaseError(err))
+    else res.send 200, json
       
 exports.fork = (req, res, next) ->
   return next(new Error("request.plunk is required for update()")) unless req.plunk
