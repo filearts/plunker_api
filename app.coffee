@@ -115,6 +115,7 @@ app.post "/plunks/:id", sessions.withCurrentSession, validateSchema(plunks.schem
 app.del "/plunks/:id", plunks.withPlunk, plunks.ownsPlunk, plunks.destroy
 
 app.post "/plunks/:id/freeze", sessions.withCurrentSession, plunks.withPlunk, plunks.ownsPlunk, plunks.freeze
+app.del "/plunks/:id/freeze", sessions.withCurrentSession, plunks.withPlunk, plunks.ownsPlunk, plunks.unfreeze
 
 app.post "/plunks/:id/thumb", sessions.withCurrentSession, plunks.withPlunk, plunks.setThumbed
 app.del "/plunks/:id/thumb", sessions.withCurrentSession, plunks.withPlunk, plunks.unsetThumbed
