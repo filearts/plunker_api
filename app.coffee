@@ -1,3 +1,4 @@
+appengine = require('appengine')
 express = require("express")
 morgan = require("morgan")
 nconf = require("nconf")
@@ -36,6 +37,7 @@ corsOptions =
 
 app.set "jsonp callback", true
 
+app.use appengine.middleware.base
 app.use morgan("short")
 app.use require("./middleware/cors").middleware()
 app.use express.bodyParser()
@@ -54,6 +56,15 @@ sessions = require "./resources/sessions"
 
 # Users
 users = require "./resources/users"
+
+
+app.get "_ah/start", (req, res) ->
+  res.send(200, "OK")
+app.get "_ah/stop", (req, res) ->
+  res.send(200, "OK")
+  process.exit(0)
+app.get "_ah/health", (req, res) ->
+  res.send(200, "OK")
 
 
 app.get "/proxy.html", (req, res) ->
