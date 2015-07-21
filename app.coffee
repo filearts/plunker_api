@@ -70,7 +70,7 @@ app.get "/_ah/health", (req, res) ->
 app.get "/proxy.html", (req, res) ->
   res.send """
     <!DOCTYPE HTML>
-    <script src="//cdn.rawgit.com/jpillora/xdomain/gh-pages/dist/0.6/xdomain.min.js" master="#{wwwUrl}"></script>
+    <script src="https://cdn.rawgit.com/jpillora/xdomain/0.7.3/dist/xdomain.min.js" master="#{wwwUrl}"></script>
   """
 
 
