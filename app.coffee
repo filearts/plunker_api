@@ -82,25 +82,28 @@ app.post "*", sessions.withCurrentSession
 plunks = require "./resources/plunks"
 
 
-app.get "/plunks", plunks.createListing()
+app.get "/plunks", plunks.createListing (req, res) ->
+  baseUrl: "/plunks"
+  sort: "-updated_at"
+  onlyPublic: true
 app.get "/plunks/trending", plunks.createListing (req, res) ->
   baseUrl: "#{apiUrl}/plunks/trending"
   sort: "-score -updated_at"
-  cache: "1m" # One minute
+  onlyPublic: true
 app.get "/plunks/popular", plunks.createListing (req, res) ->
   baseUrl: "#{apiUrl}/plunks/popular"
   sort: "-thumbs -updated_at"
-  cache: 60 * 1 # One minute
+  onlyPublic: true
 
 app.get "/plunks/views", plunks.createListing (req, res) ->
   baseUrl: "#{apiUrl}/plunks/views"
   sort: "-views -updated_at"
-  cache: 60 * 1 # One minute
+  onlyPublic: true
 
 app.get "/plunks/forked", plunks.createListing (req, res) ->
   baseUrl: "#{apiUrl}/plunks/forked"
   sort: "-forked -updated_at"
-  cache: 60 * 1 # One minute
+  onlyPublic: true
 
 
 app.get "/plunks/remembered", users.withCurrentUser, plunks.createListing (req, res) ->
@@ -132,6 +135,7 @@ app.get "/plunks/:id/forks", plunks.createListing (req, res) ->
   query: {fork_of: req.params.id}
   baseUrl: "#{apiUrl}/plunk/#{req.params.id}/forks"
   sort: "-updated_at"
+  onlyPublic: true
 
 
 
@@ -143,6 +147,7 @@ app.get "/templates", plunks.createListing (req, res) ->
   baseUrl: "#{apiUrl}/templates"
   query: query
   sort: "-thumbs -updated_at"
+  onlyPublic: true
 
 
 
@@ -153,14 +158,26 @@ app.get "/users/:login/plunks", users.withUser, plunks.createListing (req, res) 
   sort: "-updated_at"
   query: {user: req.user._id}
   baseUrl: "#{apiUrl}/users/#{req.params.login}/plunks"
+  ignorePrivate: req.params.login == req.user.login
+  onlyPublic: req.params.login != req.user.login
+app.get "/users/:login/plunks/tagged/:tag", users.withUser, plunks.createListing (req, res) ->
+  sort: "-updated_at"
+  query: {user: req.user._id, tags: req.params.tag}
+  baseUrl: "#{apiUrl}/users/#{req.params.login}/plunks/tagged/#{req.params.tag}"
+  ignorePrivate: req.params.login == req.user.login
+  onlyPublic: req.params.login != req.user.login
 app.get "/users/:login/thumbed", users.withUser, plunks.createListing (req, res) ->
   sort: "-updated_at"
   query: {voters: req.user._id}
   baseUrl: "#{apiUrl}/users/#{req.params.login}/thumbed"
+  ignorePrivate: req.params.login == req.user.login
+  onlyPublic: req.params.login != req.user.login
 app.get "/users/:login/remembered", users.withUser, plunks.createListing (req, res) ->
   sort: "-updated_at"
   query: {rememberers: req.user._id}
   baseUrl: "#{apiUrl}/users/#{req.params.login}/remembered"
+  ignorePrivate: req.params.login == req.user.login
+  onlyPublic: req.params.login != req.user.login
 
 ###
 
@@ -172,7 +189,7 @@ app.post "/plunks/:id/comments", comments.create
 app.get "/comments/:id", comments.read
 app.post "/comments/:id", comments.update
 app.del "/comments/:id", comments.destroy
-
+docker -d --tlsverify --tlscacert=~/.docker/localhost/ca.pem --tlscert=~/.docker/localhost/server-cert.pem --tlskey=~/.docker/localhost/server-key.pem -H=localhost:2376
 ###
 
 # Catalogue

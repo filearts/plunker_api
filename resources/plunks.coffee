@@ -130,7 +130,7 @@ saveNewPlunk = (plunk, cb) ->
 populatePlunk = (json, options = {}) ->
   plunk = options.plunk or new Plunk
   plunk.description = json.description or "Untitled"
-  plunk.private = true unless json.private == false
+  plunk.private = json.private != false
   plunk.source = json.source
   plunk.user = options.user._id if options.user
   plunk.fork_of = options.parent._id if options.parent
