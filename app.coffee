@@ -1,3 +1,4 @@
+appengine = require('appengine')
 express = require("express")
 morgan = require("morgan")
 nconf = require("nconf")
@@ -36,6 +37,7 @@ corsOptions =
 
 app.set "jsonp callback", true
 
+app.use appengine.middleware.base
 app.use morgan("short")
 app.use require("./middleware/cors").middleware()
 app.use express.bodyParser()
@@ -56,10 +58,19 @@ sessions = require "./resources/sessions"
 users = require "./resources/users"
 
 
+app.get "/_ah/start", (req, res) ->
+  res.send(200, "OK")
+app.get "/_ah/stop", (req, res) ->
+  res.send(200, "OK")
+  process.exit(0)
+app.get "/_ah/health", (req, res) ->
+  res.send(200, "OK")
+
+
 app.get "/proxy.html", (req, res) ->
   res.send """
     <!DOCTYPE HTML>
-    <script src="//cdn.rawgit.com/jpillora/xdomain/gh-pages/dist/0.6/xdomain.min.js" master="#{wwwUrl}"></script>
+    <script src="https://cdn.rawgit.com/jpillora/xdomain/0.7.3/dist/xdomain.min.js" master="#{wwwUrl}"></script>
   """
 
 
@@ -83,26 +94,31 @@ plunks = require "./resources/plunks"
 
 
 app.get "/plunks", plunks.createListing (req, res) ->
-  baseUrl: "/plunks"
+  baseUrl: "#{apiUrl}/plunks"
   sort: "-updated_at"
+  ignorePrivate: true
   onlyPublic: true
 app.get "/plunks/trending", plunks.createListing (req, res) ->
   baseUrl: "#{apiUrl}/plunks/trending"
   sort: "-score -updated_at"
+  ignorePrivate: true
   onlyPublic: true
 app.get "/plunks/popular", plunks.createListing (req, res) ->
   baseUrl: "#{apiUrl}/plunks/popular"
   sort: "-thumbs -updated_at"
+  ignorePrivate: true
   onlyPublic: true
 
 app.get "/plunks/views", plunks.createListing (req, res) ->
   baseUrl: "#{apiUrl}/plunks/views"
   sort: "-views -updated_at"
+  ignorePrivate: true
   onlyPublic: true
 
 app.get "/plunks/forked", plunks.createListing (req, res) ->
   baseUrl: "#{apiUrl}/plunks/forked"
   sort: "-forked -updated_at"
+  ignorePrivate: true
   onlyPublic: true
 
 
@@ -135,19 +151,20 @@ app.get "/plunks/:id/forks", plunks.createListing (req, res) ->
   query: {fork_of: req.params.id}
   baseUrl: "#{apiUrl}/plunk/#{req.params.id}/forks"
   sort: "-updated_at"
+  ignorePrivate: true
   onlyPublic: true
 
 
 
-app.get "/templates", plunks.createListing (req, res) ->
-  query = type: "template"
-  
-  if taglist = req.query.taglist then query.tags = {$all: taglist.split(",")}
-  
-  baseUrl: "#{apiUrl}/templates"
-  query: query
-  sort: "-thumbs -updated_at"
-  onlyPublic: true
+#app.get "/templates", plunks.createListing (req, res) ->
+  #query = type: "template"
+  #
+  #if taglist = req.query.taglist then query.tags = {$all: taglist.split(",")}
+  #
+  #baseUrl: "#{apiUrl}/templates"
+  #query: query
+  #sort: "-thumbs -updated_at"
+  #onlyPublic: true
 
 
 
@@ -158,26 +175,26 @@ app.get "/users/:login/plunks", users.withUser, plunks.createListing (req, res) 
   sort: "-updated_at"
   query: {user: req.user._id}
   baseUrl: "#{apiUrl}/users/#{req.params.login}/plunks"
-  ignorePrivate: req.params.login == req.user.login
-  onlyPublic: req.params.login != req.user.login
+  ignorePrivate: req.currentUser and req.currentUser.login == req.params.login
+  onlyPublic: !req.currentUser or req.currentUser.login != req.params.login
 app.get "/users/:login/plunks/tagged/:tag", users.withUser, plunks.createListing (req, res) ->
   sort: "-updated_at"
   query: {user: req.user._id, tags: req.params.tag}
   baseUrl: "#{apiUrl}/users/#{req.params.login}/plunks/tagged/#{req.params.tag}"
-  ignorePrivate: req.params.login == req.user.login
-  onlyPublic: req.params.login != req.user.login
+  ignorePrivate: req.currentUser and req.currentUser.login == req.params.login
+  onlyPublic: !req.currentUser or req.currentUser.login != req.params.login
 app.get "/users/:login/thumbed", users.withUser, plunks.createListing (req, res) ->
   sort: "-updated_at"
   query: {voters: req.user._id}
   baseUrl: "#{apiUrl}/users/#{req.params.login}/thumbed"
-  ignorePrivate: req.params.login == req.user.login
-  onlyPublic: req.params.login != req.user.login
+  ignorePrivate: req.currentUser and req.currentUser.login == req.params.login
+  onlyPublic: !req.currentUser or req.currentUser.login != req.params.login
 app.get "/users/:login/remembered", users.withUser, plunks.createListing (req, res) ->
   sort: "-updated_at"
   query: {rememberers: req.user._id}
   baseUrl: "#{apiUrl}/users/#{req.params.login}/remembered"
-  ignorePrivate: req.params.login == req.user.login
-  onlyPublic: req.params.login != req.user.login
+  ignorePrivate: req.currentUser and req.currentUser.login == req.params.login
+  onlyPublic: !req.currentUser or req.currentUser.login != req.params.login
 
 ###
 

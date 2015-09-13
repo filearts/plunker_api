@@ -337,7 +337,7 @@ exports.createListing = (config = {}) ->
     options ||= {}
     
     options.baseUrl ||= "#{apiUrl}/plunks"
-    options.query ||= type: "plunk"
+    options.query ||= {}
     
     page = parseInt(req.param("p", "1"), 10)
     limit = parseInt(req.param("pp", "8"), 10)
@@ -346,14 +346,14 @@ exports.createListing = (config = {}) ->
     unless options.ignorePrivate
       if req.currentUser
         options.query.$or = [
-          'private': $ne: true
+          'private': false
         ,
           user: req.currentUser._id
         ]
       else
-        options.query.private = $ne: true
+        options.query.private = false
     else if options.onlyPublic
-      options.query.private = $ne: true
+      options.query.private = false
     
     # Build the Mongoose Query
     query = Plunk.find(options.query)
