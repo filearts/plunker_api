@@ -206,7 +206,7 @@ app.post "/plunks/:id/comments", comments.create
 app.get "/comments/:id", comments.read
 app.post "/comments/:id", comments.update
 app.del "/comments/:id", comments.destroy
-docker -d --tlsverify --tlscacert=~/.docker/localhost/ca.pem --tlscert=~/.docker/localhost/server-cert.pem --tlskey=~/.docker/localhost/server-key.pem -H=localhost:2376
+
 ###
 
 # Catalogue
