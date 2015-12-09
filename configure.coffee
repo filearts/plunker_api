@@ -4,11 +4,9 @@ analytics = require("analytics-node")
 env = process.env.NODE_ENV or "development"
 
 nconf.use("memory")
-  .argv()
-  .env()
   .file({file: "config.#{env}.json"})
   .defaults({
-    PORT: 8080
+    PORT: 8888,
   })
 
 analytics.init(config) if config = nconf.get("analytics")

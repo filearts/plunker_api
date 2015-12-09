@@ -1,11 +1,10 @@
-var forever = require('forever-monitor');
+require('coffee-script');
 
-var child = new (forever.Monitor)('index.js', {
-  max: 10,
+var App = require('./app.coffee');
+var Nconf = require('nconf');
+
+App.listen(Nconf.get('PORT'), function(err) {
+    if (err) throw err;
+    
+    console.log('[OK] API server listening on port `' + Nconf.get('PORT') + '`.');
 });
-
-child.on('exit', function () {
-  console.log('[ERR] App killed after 10 fails.');
-});
-
-child.start();
