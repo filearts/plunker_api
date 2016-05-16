@@ -19,7 +19,7 @@
       "type": "object",
       "additionalProperties": false,
       "patternProperties": {
-        "^[\\w\\-. /]+$": {
+        "^[\\w\\-. +/]+$": {
           "type": [
             {
               "type": "null"
