@@ -24,29 +24,29 @@ module.exports.createSession = createSession = (user, cb) ->
   session =
     last_access: new Date
     keychain: {}
-  
+
   if user
-    session.user = user._id 
+    session.user = user._id
     #session.user_info = user.toJSON()
-  
+
   Session.create(session, cb)
 
 
 module.exports.loadSession = loadSession = (sessid, cb) ->
   return cb() unless sessid and sessid.length
-  
+
   if sessionData = sessionCache.get(sessid)
-    return cb(null, sessionData) 
+    return cb(null, sessionData)
 
   sessionData =
     last_access: Date.now()
-    expires_at: Date.now() + 1000 * 60 * 60 * 24 * 7 * 2 # Two weeks        
-  
+    expires_at: Date.now() + 1000 * 60 * 60 * 24 * 7 * 2 # Two weeks
+
   query = Session.findByIdAndUpdate sessid, sessionData
-  query.populate("user")
+  query.populate("user", 'gravatar_id login service_id')
   query.exec (err, session) ->
     if err then cb(err)
-    else 
+    else
       sessionCache.set sessid, session
       cb(null, session)
 
@@ -100,7 +100,7 @@ module.exports.setUser = (req, res, next) ->
   users.authenticateGithubToken token, (err, ghuser) ->
     return next(new apiErrors.DatabaseError(err)) if err
     return next(new apiErrors.NotFound) unless ghuser
-    
+
     userInfo =
       login: ghuser.login
       gravatar_id: ghuser.gravatar_id
@@ -109,13 +109,13 @@ module.exports.setUser = (req, res, next) ->
     users.upsert userInfo, (err, user) ->
       return next(new apiErrors.DatabaseError(err)) if err
       return next(new apiErrors.NotFound) unless user
-      
+
       users.correct("github:#{ghuser.login}", user._id)
 
       #analytics.identify user._id,
       #  username: user.login
       #  created: user.created_at
-      
+
       req.session.user = user._id
       #req.session.user_info = user.toJSON()
       req.session.auth =
@@ -130,7 +130,7 @@ module.exports.setUser = (req, res, next) ->
           console.log "[ERR] setUser->session.save", arguments...
           next(new apiErrors.ImpossibleError)
 
-        
+
 
 module.exports.unsetUser = (req, res, next) ->
   req.session.user = null
@@ -138,11 +138,10 @@ module.exports.unsetUser = (req, res, next) ->
   req.session.auth = null
 
   req.session.save (err, session) ->
-    if err then next(apiErrors.DatabaseError(err)) 
+    if err then next(apiErrors.DatabaseError(err))
     else if session
       sessionCache.set req.session._id, req.session
       res.json session.toJSON()
     else
       console.log "[ERR] unsetUser->session.save", arguments...
       next(new apiErrors.ImpossibleError)
-    
