@@ -33,7 +33,7 @@ corsOptions =
   origin: true
   exposeHeaders: "Link"
   maxAge: 60
-    
+
 
 app.set "jsonp callback", true
 
@@ -66,11 +66,18 @@ app.get "/_ah/stop", (req, res) ->
 app.get "/_ah/health", (req, res) ->
   res.send(200, "OK")
 
+protocolRelativeUrl = wwwUrl.replace(/^https?:/, '')
 
 app.get "/proxy.html", (req, res) ->
   res.send """
     <!DOCTYPE HTML>
-    <script src="https://cdn.rawgit.com/jpillora/xdomain/0.7.3/dist/xdomain.min.js" master="#{wwwUrl}"></script>
+    <script src="https://cdn.rawgit.com/jpillora/xdomain/0.7.3/dist/xdomain.min.js"></script>
+    <script>
+      xdomain.masters({
+        "http:#{protocolRelativeUrl}": "*",
+        "https:#{protocolRelativeUrl}": "*"
+      });
+    </script>
   """
 
 
@@ -215,7 +222,7 @@ packages = require "./resources/packages"
 app.get "/catalogue/packages", packages.createListing (req, res) ->
   if q = req.param("query") then query: name: $regex: "^#{q}"
   else {}
-  
+
 #app.post "/catalogue/packages", validateSchema(packages.schema.create), packages.create
 app.post "/catalogue/packages", validateSchema(packages.schema.create), users.withCurrentUser, packages.create
 app.get "/catalogue/packages/:name", packages.withPackage, packages.read
@@ -237,9 +244,9 @@ tags = require "./resources/tags"
 app.get "/tags", tags.list
 app.get "/tags/:taglist", plunks.createListing (req, res) ->
   taglist = req.params.taglist.split(",")
-  
+
   return res.json [] unless taglist.length
-  
+
   query: if taglist.length > 1 then {tags: {$all: taglist}} else {tags: taglist[0]}
   baseUrl: "#{apiUrl}/tags/#{req.params.taglist}"
   sort: "-score -updated_at"
@@ -263,7 +270,7 @@ pruneSessions = ->
   sessions.prune (err, numDocs) ->
     if err then console.log "[ERR] Pruning failed", err.message
     else console.log "[OK] Pruned #{numDocs} sessions"
-  
+
   setTimeout pruneSessions, PRUNE_FREQUENCY
 
 pruneSessions()

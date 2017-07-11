@@ -9,13 +9,13 @@ apiUrl = nconf.get('url:api')
 wwwUrl = nconf.get('url:www')
 runUrl = nconf.get('url:run')
 
-plunkerDb = mongoose.createConnection nconf.get("mongodb:uri")
-plunkerDbTimeout = setTimeout(errorConnecting, 1000 * 30)
-
 errorConnecting = ->
   console.error "Error connecting to mongodb"
   process.exit(1)
-  
+
+plunkerDb = mongoose.createConnection nconf.get("mongodb:uri")
+plunkerDbTimeout = setTimeout(errorConnecting, 1000 * 30)
+
 plunkerDb.on "open", -> clearTimeout(plunkerDbTimeout)
 plunkerDb.on "error", (err) -> console.log "[ERR] Database error:", err
 plunkerDb.on "disconnected", (err) -> console.log "[WARN] Database disconnected:", arguments...
@@ -26,8 +26,8 @@ plunkerDb.on "reconnected", (err) -> console.log "[WARN] Database reconnected:",
 # Enable Query::paginate
 require "./plugins/paginate"
 
-      
-      
+
+
 module.exports =
   Session: plunkerDb.model "Session", require("./schema/session").SessionSchema
   User: plunkerDb.model "User", require("./schema/user").UserSchema
