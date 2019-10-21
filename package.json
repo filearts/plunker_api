@@ -20,7 +20,7 @@
     "genid": "~0.1.0",
     "googlediff": "~0.1.0",
     "json-gate": "~0.8.21",
-    "jsonwebtoken": "^3.2.2",
+    "jsonwebtoken": "^8.5.1",
     "lodash": "~2.4.1",
     "lru-cache": "~2.5.0",
     "memoize": "~0.1.1",
